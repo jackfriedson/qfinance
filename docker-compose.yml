@@ -1,13 +1,14 @@
 version: "3"
 
 services:
-  agent:
+  agent_src:
     build: qfinance
     volumes:
       - src:/usr/src/qfinance
   tf:
     image: tensorflow/tensorflow:latest-gpu-py3
-    command: python3 /usr/src/qfinance/cli.py --datafile stock_data.csv
+    command: pip3 install --no-cache-dir -r /usr/src/qfinance/requirements.txt
+             && python3 /usr/src/qfinance/cli.py --datafile stock_data.csv
     volumes:
       - experiments:/var/lib/tensorboard
       - src:/usr/src/qfinance
