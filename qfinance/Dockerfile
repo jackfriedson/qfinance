@@ -11,5 +11,7 @@ COPY . .
 COPY ./datasets/IBM_unadjusted.csv ./stock_data.csv
 
 ENV ENV "DOCKER"
+ENV LC_ALL "C.UTF-8"
+ENV LANG "C.UTF-8"
 
 CMD ["python", "cli.py", "--data-file", "stock_data.csv"]
