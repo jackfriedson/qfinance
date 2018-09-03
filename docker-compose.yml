@@ -3,15 +3,18 @@ version: "3"
 services:
   agent:
     build: qfinance
-    volumes:
-      - experiments:/var/lib/tensorboard
-  tensorboard:
-    build: tensorboard
     ports:
       - "6006:6006"
+      - "8888:8888"
     volumes:
       - experiments:/var/lib/tensorboard
-    restart: on-failure
+  # tensorboard:
+  #   build: tensorboard
+  #   ports:
+  #     - "6006:6006"
+  #   volumes:
+  #     - experiments:/var/lib/tensorboard
+  #   restart: on-failure
 
 volumes:
   experiments:
