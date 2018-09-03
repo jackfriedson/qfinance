@@ -81,6 +81,7 @@ class QFinanceEnvironment(object):
                 return 0
             if self._current_position == 'long':
                 if track_orders:
+                    click.echo('CLOSING ORDER')
                     self._orders[self._order_open_ts, 'sell'] = start_state['close']
                     self._order_open_ts = None
                 return -self.fee
@@ -99,6 +100,7 @@ class QFinanceEnvironment(object):
                 self._full_data.iloc[self._current_state-1]['close']) - 1.0
 
     def order_returns(self):
+        click.echo(self._orders)
         orders = self._orders.dropna()
         click.echo('Orders:')
         click.echo(orders)
