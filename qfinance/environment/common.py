@@ -26,6 +26,7 @@ class QFinanceEnvironment(object):
         self._full_data = downsample(ohlc_data, interval)
         self._current_state = 0
         self._current_position = None
+        self._bought_ts = None
         self._indicators = []
 
         self.fee = fee
@@ -65,14 +66,12 @@ class QFinanceEnvironment(object):
         self._next()
         end_state = self._full_data.iloc[self._current_state]
 
-        if track_orders:
-            click.echo(action)
-
         if action == 'buy':
             if self._current_position is None:
                 self._current_position == 'long'
                 if track_orders:
-                    self._orders[self.current_timestamp, 'buy'] = self.last_price
+                    self._bought_ts = self.current_timestamp
+                    self._orders[self._bought_ts, 'buy'] = self.last_price
                 return self.period_return - self.fee
             if self._current_position == 'long':
                 return self.period_return
@@ -82,7 +81,8 @@ class QFinanceEnvironment(object):
                 return 0
             if self._current_position == 'long':
                 if track_orders:
-                    self._orders.iloc[-1]['sell'] = start_state['close']
+                    self._orders[self._bought_ts'sell'] = start_state['close']
+                    self._bought_ts = None
                 return -self.fee
 
         if action == 'hold':
