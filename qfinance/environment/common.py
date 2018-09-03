@@ -100,7 +100,11 @@ class QFinanceEnvironment(object):
 
     def order_returns(self):
         orders = self._orders.dropna()
-        return orders['sell'] / orders['buy'] - 1.
+        click.echo('Orders:')
+        click.echo(orders)
+        order_returns = orders['sell'] / orders['buy'] - 1.
+        click.echo('Returns:')
+        click.echo(order_returns)
 
     def plot(self,
              data_column: str = 'close',
