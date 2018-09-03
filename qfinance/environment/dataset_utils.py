@@ -16,7 +16,7 @@ COLUMN_INDEX_MAP = {
     5: 'close',
     6: 'volume'
 }
-DEFAULT_FREQ = '1T'
+DEFAULT_FREQ = '1Min'
 DEFAULT_TIMEZONE = 'America/New_York'
 
 
@@ -36,13 +36,6 @@ def load_csv_data(csv_file: Path) -> pd.DataFrame:
     df = upsample(df, DEFAULT_FREQ)
     df = df.astype(COLUMN_DTYPES)
     return df
-
-
-# def resample(data: pd.DataFrame, freq: str) -> pd.DataFrame:
-#     if to_offset(freq) < data.index.freq:
-#         return _upsample(data, freq)
-#     else:
-#         return _downsample(data, freq)
 
 
 def upsample(data: pd.DataFrame, freq: str) -> pd.DataFrame:
