@@ -16,8 +16,9 @@ services:
       - 6006:6006
     volumes:
       - experiments:/var/lib/tensorboard
-    restart_policy:
-      condition: on-failure
+    deploy:
+      restart_policy:
+        condition: on-failure
 
 volumes:
   experiments:
