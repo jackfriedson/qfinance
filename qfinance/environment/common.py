@@ -33,15 +33,13 @@ class QFinanceEnvironment(object):
         self.n_folds = n_folds
         self.replay_memory_start_size = replay_memory_start_size
 
-        self._orders = pd.DataFrame(columns=['timestamp', 'buy', 'sell'])
-        self._orders.set_index('timestamp', inplace=True)
+        self._orders = pd.DataFrame(columns=['buy', 'sell'], index=self._full_data.index)
+        click.echo(self._orders)
 
         total_length = len(self._full_data) - replay_memory_start_size
         train_percent_ratio = (1-self.validation_percent) / self.validation_percent
         self.fold_validation_length = int(total_length / (n_folds + train_percent_ratio))
         self.fold_train_length = int(self.fold_validation_length * train_percent_ratio)
-
-        click.echo(self._full_data)
 
     @classmethod
     def from_csv(cls, csv_path: str, **params):
@@ -72,7 +70,7 @@ class QFinanceEnvironment(object):
             if self._current_position is None:
                 self._current_position == 'long'
                 if track_orders:
-                    self._orders[self.current_timestamp]['buy'] = self.last_price
+                    self._orders[self.current_timestamp, 'buy'] = self.last_price
                 return self.period_return - self.fee
             if self._current_position == 'long':
                 return self.period_return
