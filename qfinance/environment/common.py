@@ -17,11 +17,12 @@ class QFinanceEnvironment(object):
 
     def __init__(self,
                  ohlc_data: pd.DataFrame,
+                 interval: str,
                  fee: float,
                  validation_percent: float,
                  n_folds: int,
                  replay_memory_start_size: int):
-        self._full_data = ohlc_data
+        self._full_data = resample(ohlc_data, interval)
         self._current_state = 0
         self._current_position = None
         self._indicators = []

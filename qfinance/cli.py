@@ -9,9 +9,10 @@ from environment.common import QFinanceEnvironment
 @click.command()
 @click.option('--data-file', type=click.Path(exists=True), help='CSV file to read data from')
 @click.option('--validation-percent', type=float, default=0.2)
-@click.option('--n-folds', type=int, default=500)
+@click.option('--n-folds', type=int, default=10)
 @click.option('--replay-memory-start-size', type=int, default=1000)
 @click.option('--fee', type=float, default=0.002)
+@click.option('--interval', type=str, default='1Min')
 def learn(data_file, **kwargs):
     hyperparameters = {
         'batch_size': 32,
