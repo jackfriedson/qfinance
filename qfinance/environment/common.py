@@ -112,14 +112,12 @@ class QFinanceEnvironment(object):
         # Plot long and short positions
         ax0 = fig.add_subplot(gs[0])
         ax0.set_title('Price ({})'.format(data_column))
-        ax0.plot(self._full_data.index, self._full_data[data_column], 'black')
+        ax0.plot(self._full_data.index, self._full_data[data_column], 'blue')
 
         if plot_orders:
-            all_nan = self._orders.isnull().all(axis=0)
-            if not all_nan['buy']:
-                ax0.plot(self._orders.index, self._orders['buy'], color='k', marker='^', fillstyle='none')
-            if not all_nan['sell']:
-                ax0.plot(self._orders.index, self._orders['sell'], color='k', marker='v', fillstyle='none')
+            orders = self._orders.dropna()
+            ax0.plot(orders.index, orders['buy'], color='k', marker='^', fillstyle='none')
+            ax0.plot(orders.index, orders['sell'], color='k', marker='v', fillstyle='none')
 
         if plot_indicators:
             for i, indicator in enumerate(self._indicators, start=1):
