@@ -2,6 +2,7 @@ import io
 from pathlib import Path
 from typing import Iterable, Tuple, Union
 
+import click
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
