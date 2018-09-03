@@ -110,7 +110,7 @@ class QFinanceEnvironment(object):
         # Plot long and short positions
         ax0 = fig.add_subplot(gs[0])
         ax0.set_title('Price ({})'.format(data_column))
-        ax0.plot(self._data.index, self._data[data_column], 'black')
+        ax0.plot(self._full_data.index, self._full_data[data_column], 'black')
 
         if plot_orders:
             all_nan = self._orders.isnull().all(axis=0)
