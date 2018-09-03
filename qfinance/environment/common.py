@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from matplotlib import gridspec
 
-from environment.dataset_utils import load_csv_data, resample
+from environment.dataset_utils import load_csv_data, downsample
 
 
 class QFinanceEnvironment(object):
@@ -22,7 +22,7 @@ class QFinanceEnvironment(object):
                  validation_percent: float,
                  n_folds: int,
                  replay_memory_start_size: int):
-        self._full_data = resample(ohlc_data, interval)
+        self._full_data = downsample(ohlc_data, interval)
         self._current_state = 0
         self._current_position = None
         self._indicators = []

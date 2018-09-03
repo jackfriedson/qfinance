@@ -33,25 +33,25 @@ def load_csv_data(csv_file: Path) -> pd.DataFrame:
     )
     df.rename(COLUMN_INDEX_MAP, axis='columns', inplace=True)
     df.tz_localize(DEFAULT_TIMEZONE)
-    df = _upsample(df, DEFAULT_FREQ)
+    df = upsample(df, DEFAULT_FREQ)
     df = df.astype(COLUMN_DTYPES)
     return df
 
 
-def resample(data: pd.DataFrame, freq: str) -> pd.DataFrame:
-    if to_offset(freq) < data.index.freq:
-        return _upsample(data, freq)
-    else:
-        return _downsample(data, freq)
+# def resample(data: pd.DataFrame, freq: str) -> pd.DataFrame:
+#     if to_offset(freq) < data.index.freq:
+#         return _upsample(data, freq)
+#     else:
+#         return _downsample(data, freq)
 
 
-def _upsample(data: pd.DataFrame, freq: str) -> pd.DataFrame:
+def upsample(data: pd.DataFrame, freq: str) -> pd.DataFrame:
     ohlc = data[['open', 'high', 'low', 'close']].resample(freq).ffill()
     volume = data[['volume']].resample(freq).fillna(None).fillna(0)
     return ohlc.join(volume)
 
 
-def _downsample(data: pd.DataFrame, freq: str) -> pd.DataFrame:
+def downsample(data: pd.DataFrame, freq: str) -> pd.DataFrame:
     return data.resample(freq).agg({
         'open': 'first',
         'high': 'max',
