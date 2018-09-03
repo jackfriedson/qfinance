@@ -6,6 +6,7 @@ from collections import namedtuple
 from pathlib import Path
 from typing import Tuple
 
+import click
 import numpy as np
 import progressbar
 import tensorflow as tf
@@ -78,7 +79,7 @@ class QFinanceAgent(object):
         with tf.Session() as sess:
             sess.run(tf.global_variables_initializer())
 
-            print('Initializing replay memory...')
+            click.echo('Initializing replay memory...')
             replay_memory = ExperienceBuffer(replay_memory_max_size, random)
             for state in self.environment.replay_memories():
                 action = random.randint(n_outputs)
@@ -93,8 +94,8 @@ class QFinanceAgent(object):
                     replay_memory.new_episode()
                     rnn_state = (np.zeros([1, n_inputs]), np.zeros([1, n_inputs]))
 
-                    print('\nSlice {}; Epoch {}'.format(slice_i, epoch_i))
-                    print('Training...')
+                    click.echo('\nSlice {}; Epoch {}'.format(slice_i, epoch_i))
+                    click.echo('Training...')
                     train_bar = progressbar.ProgressBar(term_width=120,
                                                         max_value=self.environment.fold_train_length,
                                                         prefix='Training:')
@@ -128,7 +129,7 @@ class QFinanceAgent(object):
                     saver.save(sess, str(self.models_dir/'model.ckpt'))
 
                     # Evaluate the model
-                    print('Evaluating...')
+                    click.echo('Evaluating...')
                     rewards = val_losses = []
                     start_price = self.environment.last_price
                     rnn_state = (np.zeros([1, n_inputs]), np.zeros([1, n_inputs]))
@@ -160,8 +161,8 @@ class QFinanceAgent(object):
                         position_value *= 1 + return_val
                     algorithm_return = (position_value / start_price) - 1.
                     outperformance = algorithm_return - market_return
-                    print('Market return: {:.2f}%'.format(100 * market_return))
-                    print('Outperformance: {:+.2f}%'.format(100 * outperformance))
+                    click.echo('Market return: {:.2f}%'.format(100 * market_return))
+                    click.echo('Outperformance: {:+.2f}%'.format(100 * outperformance))
 
                     # Plot results and save to summary file
                     buf = io.BytesIO()

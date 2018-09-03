@@ -40,7 +40,7 @@ class QFinanceEnvironment(object):
         self.fold_validation_length = int(total_length / (n_folds + train_percent_ratio))
         self.fold_train_length = int(self.fold_validation_length * train_percent_ratio)
 
-        print(self._full_data)
+        click.echo(self._full_data)
 
     @classmethod
     def from_csv(cls, csv_path: str, **params):
@@ -152,7 +152,7 @@ class QFinanceEnvironment(object):
 
     @property
     def current_timestamp(self):
-        return self._full_data.index.iloc[self._current_state]
+        return self._full_data.index[self._current_state]
 
     @property
     def last_price(self) -> float:
