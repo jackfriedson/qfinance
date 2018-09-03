@@ -7,7 +7,8 @@ services:
       - src:/usr/src/qfinance
   tf:
     image: tensorflow/tensorflow:latest-gpu-py3
-    command: bash
+    args:
+      - bash
     volumes:
       - experiments:/var/lib/tensorboard
       - src:/usr/src/qfinance

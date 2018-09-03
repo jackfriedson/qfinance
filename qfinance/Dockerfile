@@ -5,7 +5,7 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-COPY ./datasets/IBM_unadjusted_trunc.csv ./stock_data.csv
+COPY ./datasets/IBM_unadjusted.csv ./stock_data.csv
 
 ENV ENV "DOCKER"
 
