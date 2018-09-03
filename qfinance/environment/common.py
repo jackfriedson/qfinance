@@ -34,7 +34,6 @@ class QFinanceEnvironment(object):
         self.replay_memory_start_size = replay_memory_start_size
 
         self._orders = pd.DataFrame(columns=['buy', 'sell'], index=self._full_data.index)
-        click.echo(self._orders)
 
         total_length = len(self._full_data) - replay_memory_start_size
         train_percent_ratio = (1-self.validation_percent) / self.validation_percent
@@ -97,7 +96,8 @@ class QFinanceEnvironment(object):
                 self._full_data.iloc[self._current_state-1]['close']) - 1.0
 
     def order_returns(self):
-        return self._orders['sell'] / self._orders['buy'] - 1.
+        orders = self._orders.dropna()
+        return orders['sell'] / orders['buy'] - 1.
 
     def plot(self,
              data_column: str = 'close',
