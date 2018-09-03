@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 from matplotlib import gridspec
 
-from environment.dataset_utils import load_csv_data
+from environment.dataset_utils import load_csv_data, resample
 
 
 class QFinanceEnvironment(object):
