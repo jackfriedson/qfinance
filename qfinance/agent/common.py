@@ -95,7 +95,9 @@ class QFinanceAgent(object):
 
                     print('\nSlice {}; Epoch {}'.format(slice_i, epoch_i))
                     print('Training...')
-                    train_bar = progressbar.ProgressBar(term_width=80, max_value=self.environment.fold_train_length)
+                    train_bar = progressbar.ProgressBar(term_width=120,
+                                                        max_value=self.environment.fold_train_length,
+                                                        prefix='Training:')
                     train_rewards = losses = []
 
                     for state in train_bar(train_slice):
@@ -131,7 +133,11 @@ class QFinanceAgent(object):
                     start_price = self.environment.last_price
                     rnn_state = (np.zeros([1, n_inputs]), np.zeros([1, n_inputs]))
 
-                    for state in validation_slice:
+                    val_bar = progressbar.ProgressBar(term_width=120,
+                                                      max_value=self.environment.fold_validation_length,
+                                                      prefix='Evaluating:')
+
+                    for state in val_bar(validation_slice):
                         q_values, next_rnn_state = q_estimator.predict(sess, np.expand_dims(state, 0), 1, rnn_state, training=False)
                         action = np.argmax(q_values)
                         reward = self.environment.step(action, track_orders=True)
