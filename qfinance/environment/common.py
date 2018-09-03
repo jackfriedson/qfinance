@@ -42,7 +42,7 @@ class QFinanceEnvironment(object):
 
     @classmethod
     def from_csv(cls, csv_path: str, **params):
-        df = load_csv_data(Path(csv_path), upsample=False)
+        df = load_csv_data(Path(csv_path))
         return cls(df, **params)
 
     def replay_memories(self) -> pd.DataFrame:

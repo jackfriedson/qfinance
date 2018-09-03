@@ -20,7 +20,7 @@ DEFAULT_FREQ = '1T'
 DEFAULT_TIMEZONE = 'America/New_York'
 
 
-def load_csv_data(csv_file: Path, upsample: bool = True) -> pd.DataFrame:
+def load_csv_data(csv_file: Path) -> pd.DataFrame:
     """ Loads OHLCV data from a CSV with columns [date, time, open, high, low,
         close, volume], resamples, and pads NaN values.
     """
@@ -33,8 +33,7 @@ def load_csv_data(csv_file: Path, upsample: bool = True) -> pd.DataFrame:
     )
     df.rename(COLUMN_INDEX_MAP, axis='columns', inplace=True)
     df.tz_localize(DEFAULT_TIMEZONE)
-    if upsample:
-        df = _upsample(df, '1T')
+    df = _upsample(df, DEFAULT_FREQ)
     df = df.astype(COLUMN_DTYPES)
     return df
 
