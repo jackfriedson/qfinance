@@ -1,10 +1,24 @@
-agent:
-  build: qfinance
+version: "3"
 
-tensorboard:
-  build: tensorboard
-  ports:
-    - 6006:6006
-  volumes_from:
-    - agent
-  restart: always
+services:
+  agent:
+    build: qfinance
+    volumes:
+      - src: /usr/src/qfinance
+  tf:
+    image: tensorflow/tensorflow:latest-gpu-py3
+    volumes:
+      - experiments: /var/lib/tensorboard
+      - src: /usr/src/qfinance
+  tensorboard:
+    build: tensorboard
+    ports:
+      - 6006:6006
+    volumes:
+      - experiments: /var/lib/tensorboard
+    restart_policy:
+      condition: on-failure
+
+volumes:
+  experiments:
+  src:

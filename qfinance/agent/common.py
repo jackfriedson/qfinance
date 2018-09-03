@@ -18,7 +18,7 @@ from model.qestimator import QEstimator, ModelParametersCopier
 Transition = namedtuple('Transition', ['state', 'action', 'reward', 'next_state'])
 
 if os.environ.get('ENV') == 'DOCKER':
-    experiments_dir = Path('/usr/share/tensorboard')
+    experiments_dir = Path('/var/lib/tensorboard')
 else:
     root_dir = Path().resolve()
     experiments_dir = root_dir / 'tensorboard' / 'summaries'
