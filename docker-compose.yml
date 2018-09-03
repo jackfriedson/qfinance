@@ -7,6 +7,7 @@ services:
       - src:/usr/src/qfinance
   tf:
     image: tensorflow/tensorflow:latest-gpu-py3
+    command: bash
     volumes:
       - experiments:/var/lib/tensorboard
       - src:/usr/src/qfinance
@@ -16,9 +17,7 @@ services:
       - 6006:6006
     volumes:
       - experiments:/var/lib/tensorboard
-    deploy:
-      restart_policy:
-        condition: on-failure
+    restart: on-failure
 
 volumes:
   experiments:

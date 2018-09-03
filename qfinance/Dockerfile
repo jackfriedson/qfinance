@@ -9,4 +9,4 @@ COPY ./datasets/IBM_unadjusted_trunc.csv ./stock_data.csv
 
 ENV ENV "DOCKER"
 
-CMD ["python", "cli.py", "--data-file", "stock_data.csv"]
+# CMD ["python", "cli.py", "--data-file", "stock_data.csv"]
