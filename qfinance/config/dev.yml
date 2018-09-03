@@ -1,2 +1,0 @@
-data_dir: './qfinance/datasets'
-experiments_dir: './tensorboard'

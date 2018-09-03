@@ -9,7 +9,7 @@ from environment.common import QFinanceEnvironment
 @click.command()
 @click.option('--data-file', type=click.Path(exists=True), help='CSV file to read data from')
 @click.option('--validation-percent', type=float, default=0.2)
-@click.option('--n-folds', type=int, default=10)
+@click.option('--n-folds', type=int, default=100)
 @click.option('--replay-memory-start-size', type=int, default=1000)
 @click.option('--fee', type=float, default=0.002)
 def learn(data_file, **kwargs):
