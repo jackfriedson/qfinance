@@ -14,9 +14,7 @@ ENV ENV "DOCKER"
 ENV LC_ALL "C.UTF-8"
 ENV LANG "C.UTF-8"
 
-CMD [
-  "python", "cli.py",
-  "--data-file", "stock_data.csv",
-  "--n-folds", "100",
-  "--interval", "60Min"
-  ]
+CMD ["python", "cli.py", \
+     "--data-file", "stock_data.csv", \
+     "--n-folds", "100", \
+     "--interval", "60Min"]
