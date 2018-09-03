@@ -68,7 +68,7 @@ class QEstimator(object):
             self.summary_writer = None
             if summaries_dir:
                 timestamp = time.strftime('%Y%m%d_%H%M%S')
-                summary_dir = summaries_dir/f'{scope}_{timestamp}'
+                summary_dir = summaries_dir/'{scope}_{timestamp}'.format(scope, timestamp)
                 summary_dir.mkdir(exist_ok=True)
                 self.summary_writer = tf.summary.FileWriter(str(summary_dir))
 
