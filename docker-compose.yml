@@ -3,10 +3,12 @@ version: "3"
 services:
   agent:
     build: qfinance
+    container_name: qf_agent
     volumes:
       - experiments:/var/lib/tensorboard
   tensorboard:
     build: tensorboard
+    container_name: qf_tensorboard
     ports:
       - "6006:6006"
     volumes:
