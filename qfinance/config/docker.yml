@@ -1,0 +1,2 @@
+data_dir: './datasets'
+experiments_dir: '/usr/share/tensorboard'

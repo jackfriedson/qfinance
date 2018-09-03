@@ -1,0 +1,10 @@
+agent:
+  build: qfinance
+
+tensorboard:
+  build: tensorboard
+  ports:
+    - 6006:6006
+  volumes_from:
+    - agent
+  restart: always

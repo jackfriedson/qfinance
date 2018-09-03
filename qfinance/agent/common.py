@@ -1,5 +1,6 @@
 import io
 import functools
+import os
 import time
 from collections import namedtuple
 from pathlib import Path
@@ -16,9 +17,11 @@ from model.qestimator import QEstimator, ModelParametersCopier
 
 Transition = namedtuple('Transition', ['state', 'action', 'reward', 'next_state'])
 
-
-root_dir = Path().resolve()
-experiments_dir = root_dir/'experiments'
+if os.environ.get('ENV') == 'DOCKER':
+    experiments_dir = Path('/usr/share/tensorboard')
+else:
+    root_dir = Path().resolve()
+    experiments_dir = root_dir / 'tensorboard' / 'summaries'
 experiments_dir.mkdir(exist_ok=True)
 
 summaries_dir = experiments_dir/'summaries'
@@ -94,9 +97,7 @@ class QFinanceAgent(object):
                     print('\nSlice {}; Epoch {}'.format(slice_i, epoch_i))
                     print('Training...')
                     train_bar = progressbar.ProgressBar(term_width=80, max_value=self.environment.fold_train_length)
-
-                    train_rewards = []
-                    losses = []
+                    train_rewards = losses = []
 
                     for state in train_bar(train_slice):
                         # Maybe update the target network
@@ -127,17 +128,14 @@ class QFinanceAgent(object):
 
                     # Evaluate the model
                     print('Evaluating...')
-                    rewards = []
-                    # returns = []
-                    val_losses = []
+                    rewards = val_losses = []
                     start_price = self.environment.last_price
-
                     rnn_state = (np.zeros([1, n_inputs]), np.zeros([1, n_inputs]))
 
                     for state in validation_slice:
                         q_values, next_rnn_state = q_estimator.predict(sess, np.expand_dims(state, 0), 1, rnn_state, training=False)
                         action = np.argmax(q_values)
-                        reward = self.environment.step(action)
+                        reward = self.environment.step(action, track_orders=True)
 
                         # Calculate validation loss for summaries
                         next_state = self.environment.state
@@ -148,25 +146,25 @@ class QFinanceAgent(object):
                         rnn_state = next_rnn_state
 
                         rewards.append(reward)
-                        # returns.append(cum_return)
                         val_losses.append(loss)
 
                     # Compute outperformance of market return
-                    # market_return = (self.environment.last_price / start_price) - 1.
-                    # position_value = start_price
-                    # for return_val in returns:
-                    #     position_value *= 1 + return_val
-                    # algorithm_return = (position_value / start_price) - 1.
-                    # outperformance = algorithm_return - market_return
-                    # print('Market return: {:.2f}%'.format(100 * market_return))
-                    # print('Outperformance: {:+.2f}%'.format(100 * outperformance))
+                    market_return = (self.environment.last_price / start_price) - 1.
+                    position_value = start_price
+                    for return_val in self.environment.order_returns():
+                        position_value *= 1 + return_val
+                    algorithm_return = (position_value / start_price) - 1.
+                    outperformance = algorithm_return - market_return
+                    print('Market return: {:.2f}%'.format(100 * market_return))
+                    print('Outperformance: {:+.2f}%'.format(100 * outperformance))
 
-                    # buf = io.BytesIO()
-                    # self.environment.plot(save_to=buf)
-                    # buf.seek(0)
-                    # image = tf.image.decode_png(buf.getvalue(), channels=4)
-                    # image = tf.expand_dims(image, 0)
-                    # epoch_chart = tf.summary.image('epoch_{}'.format(absolute_epoch), image, max_outputs=1).eval()
+                    # Plot results and save to summary file
+                    buf = io.BytesIO()
+                    self.environment.plot(save_to=buf)
+                    buf.seek(0)
+                    image = tf.image.decode_png(buf.getvalue(), channels=4)
+                    image = tf.expand_dims(image, 0)
+                    epoch_chart = tf.summary.image('epoch_{}'.format(absolute_epoch), image, max_outputs=1).eval()
 
                     # Add Tensorboard summaries
                     epoch_summary = tf.Summary()
@@ -174,10 +172,10 @@ class QFinanceAgent(object):
                     epoch_summary.value.add(simple_value=sum(train_rewards), tag='epoch/train/reward')
                     epoch_summary.value.add(simple_value=np.average(losses), tag='epoch/train/averge_loss')
                     epoch_summary.value.add(simple_value=sum(rewards), tag='epoch/validate/reward')
-                    # epoch_summary.value.add(simple_value=outperformance, tag='epoch/validate/outperformance')
+                    epoch_summary.value.add(simple_value=outperformance, tag='epoch/validate/outperformance')
                     epoch_summary.value.add(simple_value=np.average(val_losses), tag='epoch/validate/average_loss')
                     q_estimator.summary_writer.add_summary(epoch_summary, absolute_epoch)
-                    # q_estimator.summary_writer.add_summary(epoch_chart, absolute_epoch)
+                    q_estimator.summary_writer.add_summary(epoch_chart, absolute_epoch)
                     q_estimator.summary_writer.flush()
 
 

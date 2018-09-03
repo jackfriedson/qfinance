@@ -27,8 +27,8 @@ def load_csv_data(csv_file: Path, upsample: bool = True) -> pd.DataFrame:
     df = pd.read_csv(
         csv_file,
         header=None,
-        index_col='time',
-        parse_dates={'time': [0,1]},
+        index_col='timestamp',
+        parse_dates={'timestamp': [0,1]},
         infer_datetime_format=True
     )
     df.rename(COLUMN_INDEX_MAP, axis='columns', inplace=True)

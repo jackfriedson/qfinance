@@ -28,13 +28,16 @@ class QEstimator(object):
             batch_size = tf.shape(self.inputs)[0]
             rnn_batch_size = tf.reshape(batch_size // self.trace_length, shape=[])
 
+            # Input layer
             self.norm_layer = tf.contrib.layers.batch_norm(self.inputs, renorm=True, renorm_decay=renorm_decay, is_training=self.phase)
             self.norm_flat = tf.reshape(self.norm_layer, shape=[rnn_batch_size, self.trace_length, n_inputs])
 
+            # RNN Layers
             self.rnn_in = rnn_cell.zero_state(rnn_batch_size, dtype=tf.float32)
             self.rnn, self.rnn_state = tf.nn.dynamic_rnn(rnn_cell, self.norm_flat, dtype=tf.float32, initial_state=self.rnn_in)
             self.rnn = tf.reshape(self.rnn, shape=tf.shape(self.norm_layer))
 
+            # Fully connected layers
             self.hidden_layer = tf.contrib.layers.fully_connected(self.rnn, hidden_units, activation_fn=tf.nn.crelu, biases_initializer=None)
             self.output_layer = tf.contrib.layers.fully_connected(self.rnn, n_outputs, activation_fn=None, biases_initializer=None)
 

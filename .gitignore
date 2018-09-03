@@ -1,6 +1,7 @@
 # QFinance data files
-datasets/*
-experiments/*
+qfinance/datasets/*
+tensorboard/models/*
+tensorboard/summaries/*
 
 
 # Byte-compiled / optimized / DLL files
