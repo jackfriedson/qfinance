@@ -65,6 +65,9 @@ class QFinanceEnvironment(object):
         self._next()
         end_state = self._full_data.iloc[self._current_state]
 
+        if track_orders:
+            click.echo(action)
+
         if action == 'buy':
             if self._current_position is None:
                 self._current_position == 'long'

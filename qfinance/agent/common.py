@@ -95,7 +95,6 @@ class QFinanceAgent(object):
                     rnn_state = (np.zeros([1, n_inputs]), np.zeros([1, n_inputs]))
 
                     click.echo('\nSlice {}; Epoch {}'.format(slice_i, epoch_i))
-                    click.echo('Training...')
                     train_bar = progressbar.ProgressBar(term_width=120,
                                                         max_value=self.environment.fold_train_length,
                                                         prefix='Training:')
@@ -129,7 +128,6 @@ class QFinanceAgent(object):
                     saver.save(sess, str(self.models_dir/'model.ckpt'))
 
                     # Evaluate the model
-                    click.echo('Evaluating...')
                     rewards = val_losses = []
                     start_price = self.environment.last_price
                     rnn_state = (np.zeros([1, n_inputs]), np.zeros([1, n_inputs]))
