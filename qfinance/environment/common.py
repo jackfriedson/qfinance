@@ -66,6 +66,8 @@ class QFinanceEnvironment(object):
         self._next()
         end_state = self._full_data.iloc[self._current_state]
 
+        click.echo(action)
+
         if action == 'buy':
             if self._current_position is None:
                 click.echo('ORDER OPEN')
