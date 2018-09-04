@@ -72,7 +72,6 @@ class QFinanceEnvironment(object):
             if self._current_position is None:
                 self._current_position = 'long'
                 if track_orders:
-                    click.echo('ORDER OPEN')
                     self._order_open_ts = self.current_timestamp
                     self._orders.loc[self._order_open_ts, 'buy'] = start_state['close']
                 return self.period_return - self.fee
@@ -85,7 +84,6 @@ class QFinanceEnvironment(object):
             elif self._current_position == 'long':
                 self._current_position = None
                 if track_orders:
-                    click.echo('ORDER CLOSE')
                     self._orders.loc[self._order_open_ts, 'sell'] = start_state['close']
                     self._order_open_ts = None
                 return -self.fee
@@ -104,13 +102,8 @@ class QFinanceEnvironment(object):
                 self._full_data.iloc[self._current_state-1]['close']) - 1.0
 
     def order_returns(self):
-        click.echo(self._orders)
         orders = self._orders.dropna()
-        click.echo('Orders:')
-        click.echo(orders)
-        order_returns = orders['sell'] / orders['buy'] - 1.
-        click.echo('Returns:')
-        click.echo(order_returns)
+        return orders['sell'] / orders['buy'] - 1.
 
     def plot(self,
              data_column: str = 'close',
