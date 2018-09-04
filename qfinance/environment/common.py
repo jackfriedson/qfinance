@@ -68,9 +68,9 @@ class QFinanceEnvironment(object):
 
         if action == 'buy':
             if self._current_position is None:
+                click.echo('ORDER OPEN')
                 self._current_position == 'long'
                 if track_orders:
-                    click.echo('ORDER OPEN')
                     self._order_open_ts = self.current_timestamp
                     self._orders.loc[self._order_open_ts, 'buy'] = start_state['close']
                 return self.period_return - self.fee
@@ -81,9 +81,9 @@ class QFinanceEnvironment(object):
             if self._current_position is None:
                 return 0
             if self._current_position == 'long':
+                click.echo('ORDER CLOSE')
                 self._current_position = None
                 if track_orders:
-                    click.echo('ORDER CLOSE')
                     self._orders.loc[self._order_open_ts, 'sell'] = start_state['close']
                     self._order_open_ts = None
                 return -self.fee
