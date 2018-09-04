@@ -17,7 +17,7 @@ def learn(data_file, **kwargs):
     hyperparameters = {
         'batch_size': 32,
         'dropout_prob': 0.,
-        'epochs': 1,
+        'epochs': 5,
         'epsilon_decay': 2,
         'epsilon_end': 0.,
         'epsilon_start': 1.,
