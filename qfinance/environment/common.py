@@ -70,30 +70,27 @@ class QFinanceEnvironment(object):
         end_state = self._full_data.iloc[self._current_state]
 
         if action == 'buy':
+            reward = self.period_return
             if self._current_position is None:
                 self._current_position = 'long'
+                reward -= self.fee
                 if track_orders:
                     self._order_open_ts = self.current_timestamp
                     self._orders.loc[self._order_open_ts, 'buy'] = start_state['close']
-                return self.period_return - self.fee
-            elif self._current_position == 'long':
-                return self.period_return
+            return reward
 
         elif action == 'sell':
-            if self._current_position is None:
-                return 0
-            elif self._current_position == 'long':
+            reward = -self.period_return
+            if self._current_position == 'long':
                 self._current_position = None
+                reward -= self.fee
                 if track_orders:
                     self._orders.loc[self._order_open_ts, 'sell'] = start_state['close']
                     self._order_open_ts = None
-                return -self.fee
+            return reward
 
         elif action == 'hold':
-            if self._current_position is None:
-                return 0
-            elif self._current_position == 'long':
-                return self.period_return
+            return self.period_return if self._current_position == 'long' else -self.period_return
 
     @property
     def period_return(self):
