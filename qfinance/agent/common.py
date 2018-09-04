@@ -46,7 +46,7 @@ class QFinanceAgent(object):
               epsilon_end: float,
               epsilon_decay: float,
               replay_memory_max_size: int,
-              batch_size: int,
+              replay_batch_size: int,
               trace_length: int,
               update_target_every: int,
               load_model: str = None,
@@ -102,7 +102,7 @@ class QFinanceAgent(object):
 
                     for state in train_bar(train_slice):
                         # Maybe update the target network
-                        if (sess.run(global_step) // batch_size) % update_target_every == 0:
+                        if (sess.run(global_step) // replay_batch_size) % update_target_every == 0:
                             estimator_copy.make(sess)
 
                         # Make a prediction
@@ -111,11 +111,11 @@ class QFinanceAgent(object):
                         next_state = self.environment.state
 
                         replay_memory.add(Transition(state, action, reward, next_state))
-                        samples = replay_memory.sample(batch_size, trace_length)
+                        samples = replay_memory.sample(replay_batch_size, trace_length)
                         states_batch, action_batch, reward_batch, next_states_batch = map(np.array, zip(*samples))
 
                         # Train the network
-                        train_rnn_state = (np.zeros([batch_size, n_inputs]), np.zeros([batch_size, n_inputs]))
+                        train_rnn_state = (np.zeros([replay_batch_size, n_inputs]), np.zeros([replay_batch_size, n_inputs]))
                         q_values_next = target_estimator.predict(sess, next_states_batch, trace_length, train_rnn_state)[0]
                         targets_batch = reward_batch + gamma * np.amax(q_values_next, axis=1)
                         loss = q_estimator.update(sess, states_batch, action_batch, targets_batch, trace_length, train_rnn_state)
@@ -168,7 +168,7 @@ class QFinanceAgent(object):
                     buf.seek(0)
                     image = tf.image.decode_png(buf.getvalue(), channels=4)
                     image = tf.expand_dims(image, 0)
-                    epoch_chart = tf.summary.image('epoch_{}'.format(absolute_epoch), image, max_outputs=1).eval()
+                    epoch_chart = tf.summary.image('slice_{}_epoch_{}'.format(slice_i, epoch_i), image, max_outputs=1).eval()
 
                     # Add Tensorboard summaries
                     epoch_summary = tf.Summary()

@@ -15,9 +15,8 @@ from environment.common import QFinanceEnvironment
 @click.option('--interval', type=str, default='1Min')
 def learn(data_file, **kwargs):
     hyperparameters = {
-        'batch_size': 32,
         'dropout_prob': 0.,
-        'epochs': 5,
+        'epochs': 1,
         'epsilon_decay': 2,
         'epsilon_end': 0.,
         'epsilon_start': 1.,
@@ -26,6 +25,7 @@ def learn(data_file, **kwargs):
         'learn_rate': 0.001,
         'regularization_strength': 0.,
         'renorm_decay': 0.9,
+        'replay_batch_size': 32,
         'replay_memory_max_size': 100000,
         'rnn_dropout_prob': 0.,
         'rnn_layers': 2,

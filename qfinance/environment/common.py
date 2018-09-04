@@ -28,18 +28,20 @@ class QFinanceEnvironment(object):
         self._current_position = None
         self._order_open_ts = None
         self._indicators = []
+        self._orders = self.init_orders()
 
         self.fee = fee
         self.validation_percent = validation_percent
         self.n_folds = n_folds
         self.replay_memory_start_size = replay_memory_start_size
 
-        self._orders = pd.DataFrame(columns=['buy', 'sell'], index=self._full_data.index)
-
         total_length = len(self._full_data) - replay_memory_start_size
         train_percent_ratio = (1-self.validation_percent) / self.validation_percent
         self.fold_validation_length = int(total_length / (n_folds + train_percent_ratio))
         self.fold_train_length = int(self.fold_validation_length * train_percent_ratio)
+
+    def init_orders(self):
+        return pd.DataFrame(columns=['buy', 'sell'], index=self._full_data.index)
 
     @classmethod
     def from_csv(cls, csv_path: str, **params):
@@ -55,6 +57,7 @@ class QFinanceEnvironment(object):
             slice_start = fold_i * self.fold_validation_length
             def slice_epochs():
                 for _ in range(epochs):
+                    self._orders = self.init_orders()
                     self._current_state = slice_start
                     yield ((self.state for _ in range(self.fold_train_length)),
                            (self.state for _ in range(self.fold_validation_length)))
@@ -65,8 +68,6 @@ class QFinanceEnvironment(object):
         start_state = self._full_data.iloc[self._current_state]
         self._next()
         end_state = self._full_data.iloc[self._current_state]
-
-        # click.echo(action)
 
         if action == 'buy':
             if self._current_position is None:
