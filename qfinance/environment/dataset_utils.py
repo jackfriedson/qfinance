@@ -5,6 +5,7 @@ from typing import Sequence
 import numpy as np
 import pandas as pd
 from pandas.tseries.frequencies import to_offset
+from pandas.tseries.offsets import BusinessHour
 
 
 COLUMN_DTYPES = defaultdict(lambda x: np.float64)
@@ -32,16 +33,19 @@ def load_csv_data(csv_file: Path) -> pd.DataFrame:
         infer_datetime_format=True
     )
     df.rename(COLUMN_INDEX_MAP, axis='columns', inplace=True)
-    df.tz_localize(DEFAULT_TIMEZONE)
+    df = df.tz_localize(DEFAULT_TIMEZONE)
     df = upsample(df, DEFAULT_FREQ)
     df = df.astype(COLUMN_DTYPES)
     return df
 
 
 def upsample(data: pd.DataFrame, freq: str) -> pd.DataFrame:
-    ohlc = data[['open', 'high', 'low', 'close']].resample(freq).ffill()
-    volume = data[['volume']].resample(freq).fillna(None).fillna(0)
-    return ohlc.join(volume)
+    data = data.resample(freq).fillna(None)
+    data['volume'] = data['volume'].fillna(value=0)
+    data['close'] = data['close'].fillna(method='ffill')
+    for column in ['open', 'high', 'low']:
+        data[column] = data[column].fillna(value=data['close'])
+    return data
 
 
 def downsample(data: pd.DataFrame, freq: str) -> pd.DataFrame:
