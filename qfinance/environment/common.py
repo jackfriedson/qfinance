@@ -41,9 +41,7 @@ class QFinanceEnvironment(object):
         self.fold_train_length = int(self.fold_validation_length * train_percent_ratio)
 
     def init_orders(self):
-        orders = pd.DataFrame(columns=['buy', 'sell'], index=self._full_data.index)
-        orders = orders.tz_localize(DEFAULT_TIMEZONE)
-        return orders
+        return pd.DataFrame(columns=['buy', 'sell'], index=self._full_data.index)
 
     @classmethod
     def from_csv(cls, csv_path: str, **params):
