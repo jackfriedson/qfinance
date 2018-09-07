@@ -33,7 +33,7 @@ def load_csv_data(csv_file: Path) -> pd.DataFrame:
         infer_datetime_format=True
     )
     df.rename(COLUMN_INDEX_MAP, axis='columns', inplace=True)
-    df = df.tz_localize('UTC', ambiguous='infer')
+    df = df.tz_localize(DEFAULT_TIMEZONE, ambiguous='infer').tz_convert('UTC')
     df = upsample(df, DEFAULT_FREQ)
     df = df.astype(COLUMN_DTYPES)
     return df
