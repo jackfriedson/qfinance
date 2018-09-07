@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 from matplotlib import gridspec
 
-from environment.dataset_utils import load_csv_data, downsample
+from environment.dataset_utils import DEFAULT_TIMEZONE, downsample, load_csv_data
 
 
 class QFinanceEnvironment(object):
@@ -41,7 +41,9 @@ class QFinanceEnvironment(object):
         self.fold_train_length = int(self.fold_validation_length * train_percent_ratio)
 
     def init_orders(self):
-        return pd.DataFrame(columns=['buy', 'sell'], index=self._full_data.index)
+        orders = pd.DataFrame(columns=['buy', 'sell'], index=self._full_data.index)
+        orders = orders.tz_localize(DEFAULT_TIMEZONE)
+        return orders
 
     @classmethod
     def from_csv(cls, csv_path: str, **params):
