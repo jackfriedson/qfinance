@@ -120,8 +120,8 @@ class QFinanceEnvironment(object):
 
         if plot_orders:
             orders = self._orders.dropna()
-            ax0.plot(orders.index, orders['buy'], color='k', marker='^', fillstyle='none')
-            ax0.plot(orders.index, orders['sell'], color='k', marker='v', fillstyle='none')
+            ax0.plot(orders.index, orders['buy'], color='k', marker='^', linestyle='None')
+            ax0.plot(orders.index, orders['sell'], color='k', marker='v', linestyle='None')
 
         if plot_indicators:
             for i, indicator in enumerate(self._indicators, start=1):
