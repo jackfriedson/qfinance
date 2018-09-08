@@ -56,7 +56,7 @@ class QEstimator(object):
 
             update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
             with tf.control_dependencies(update_ops):
-                self.train_op = self.optimizer.minimize(self.masked_loss, global_step=tf.train.get_global_step())
+                self.train_op = self.optimizer.minimize(self.unmasked_loss, global_step=tf.train.get_global_step())
 
             summaries = [
                 tf.summary.scalar('loss', self.masked_loss),

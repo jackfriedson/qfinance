@@ -15,23 +15,29 @@ from environment.common import QFinanceEnvironment
 @click.option('--interval', type=str, default='1Min')
 def learn(data_file, **kwargs):
     hyperparameters = {
-        'dropout_prob': 0.,
         'epochs': 1,
-        'epsilon_decay': 2,
-        'epsilon_end': 0.,
+
+        # Exploration
+        'epsilon_decay': 3,
+        'epsilon_end': 0.1,
         'epsilon_start': 1.,
-        'gamma': 0.9,
+
+        # Regularization
+        'dropout_prob': 0.,
+        'regularization_strength': 0.,
+        'rnn_dropout_prob': 0.,
+
+        'gamma': 0.99,
         'hidden_units': 10,
         'learn_rate': 0.001,
-        'regularization_strength': 0.,
         'renorm_decay': 0.9,
         'replay_batch_size': 32,
         'replay_memory_max_size': 100000,
-        'rnn_dropout_prob': 0.,
         'rnn_layers': 2,
         'trace_length': 16,
-        'update_target_every': 500
+        'update_target_every': 4
     }
+
     random_seed = 999999
     environment = QFinanceEnvironment.from_csv(data_file, **kwargs)
     agent = QFinanceAgent(environment, random_seed=random_seed)

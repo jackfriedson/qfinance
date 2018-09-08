@@ -16,7 +16,7 @@ ENV LANG "C.UTF-8"
 
 CMD ["python", "cli.py", \
      "--data-file=stock_data.csv", \
-     "--n-folds=10", \
-     "--interval=H", \
+     "--n-folds=500", \
+     "--interval=5Min", \
      "--fee=0" \
   ]
