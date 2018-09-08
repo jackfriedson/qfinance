@@ -14,7 +14,7 @@ from environment.common import QFinanceEnvironment
 @click.option('--fee', type=float, default=0.002)
 @click.option('--interval', type=str, default='1Min')
 def learn(data_file, **kwargs):
-    hyperparameters = {
+    hyperparams = {
         'epochs': 1,
 
         # Exploration
@@ -22,26 +22,27 @@ def learn(data_file, **kwargs):
         'epsilon_end': 0.1,
         'epsilon_start': 1.,
 
+        # Replay Memory
+        'replay_batch_size': 32,
+        'replay_memory_max_size': 100000,
+
         # Regularization
         'dropout_prob': 0.,
         'regularization_strength': 0.,
         'rnn_dropout_prob': 0.,
 
+        # Model params
         'gamma': 0.99,
-        'hidden_units': 10,
         'learn_rate': 0.001,
         'renorm_decay': 0.9,
-        'replay_batch_size': 32,
-        'replay_memory_max_size': 100000,
+        'hidden_units': 10,
         'rnn_layers': 2,
         'trace_length': 16,
         'update_target_every': 4
     }
-
-    random_seed = 999999
     environment = QFinanceEnvironment.from_csv(data_file, **kwargs)
-    agent = QFinanceAgent(environment, random_seed=random_seed)
-    agent.train(**hyperparameters)
+    agent = QFinanceAgent(environment, random_seed=999999)
+    agent.train(**hyperparams)
 
 
 if __name__ == '__main__':
