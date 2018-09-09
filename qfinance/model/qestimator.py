@@ -50,13 +50,13 @@ class QEstimator(object):
             maskA = tf.zeros([rnn_batch_size, self.trace_length // 2])
             maskB = tf.ones([rnn_batch_size, self.trace_length // 2])
             mask = tf.reshape(tf.concat([maskA, maskB], 1), [-1])
-            self.masked_loss = tf.losses.mean_squared_error(self.targets, self.predictions, weights=mask)
+            # self.masked_loss = tf.losses.mean_squared_error(self.targets, self.predictions, weights=mask)
             self.unmasked_loss = tf.losses.mean_squared_error(self.targets, self.predictions)
             self.optimizer = tf.train.AdamOptimizer(learn_rate)
 
             update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
             with tf.control_dependencies(update_ops):
-                self.train_op = self.optimizer.minimize(self.masked_loss, global_step=tf.train.get_global_step())
+                self.train_op = self.optimizer.minimize(self.unmasked_loss, global_step=tf.train.get_global_step())
 
             summaries = [
                 tf.summary.scalar('loss', self.unmasked_loss),
@@ -96,7 +96,7 @@ class QEstimator(object):
         }
 
         summaries, global_step, _, loss = sess.run([self.summaries, tf.train.get_global_step(),
-                                                    self.train_op, self.masked_loss], feed_dict)
+                                                    self.train_op, self.unmasked_loss], feed_dict)
 
         if self.summary_writer:
             self.summary_writer.add_summary(summaries, global_step)
