@@ -63,10 +63,8 @@ class QFinanceAgent(object):
         if self.random_seed:
             tf.set_random_seed(self.random_seed)
 
-        cell = tf.contrib.rnn.LSTMCell(num_units=n_inputs, state_is_tuple=True, activation=tf.nn.softsign)
-        target_cell = tf.contrib.rnn.LSTMCell(num_units=n_inputs, state_is_tuple=True, activation=tf.nn.softsign)
-        q_estimator = QEstimator('q_estimator', cell, n_inputs, n_outputs, summaries_dir=summaries_dir, **kwargs)
-        target_estimator = QEstimator('target_q', target_cell, n_inputs, n_outputs, **kwargs)
+        q_estimator = QEstimator('q_estimator', n_inputs, n_outputs, summaries_dir=summaries_dir, **kwargs)
+        target_estimator = QEstimator('target_q', n_inputs, n_outputs, **kwargs)
         estimator_copy = ModelParametersCopier(q_estimator, target_estimator)
 
         epsilon = tf.train.polynomial_decay(epsilon_start, global_step,
@@ -88,14 +86,14 @@ class QFinanceAgent(object):
                 next_state = self.environment.state
                 replay_memory.add(Transition(state, action, reward, next_state))
 
-            for slice_i, full_slice in enumerate(self.environment.training_slices(epochs)):
-                for epoch_i, (train_slice, validation_slice) in enumerate(full_slice):
-                    absolute_epoch = (slice_i * epochs) + epoch_i
+            for episode_i, episode in enumerate(self.environment.training_slices(epochs)):
+                for epoch_i, (train_slice, validation_slice) in enumerate(episode):
+                    absolute_epoch = (episode_i * epochs) + epoch_i
 
                     replay_memory.new_episode()
                     rnn_state = (np.zeros([1, n_inputs]), np.zeros([1, n_inputs]))
 
-                    click.echo('\nSlice {}; Epoch {}'.format(slice_i, epoch_i))
+                    click.echo('\nSlice {}; Epoch {}'.format(episode_i, epoch_i))
                     train_bar = progressbar.ProgressBar(term_width=120,
                                                         max_value=self.environment.fold_train_length,
                                                         prefix='Training:')
@@ -169,7 +167,7 @@ class QFinanceAgent(object):
                     buf.seek(0)
                     image = tf.image.decode_png(buf.getvalue(), channels=4)
                     image = tf.expand_dims(image, 0)
-                    epoch_chart = tf.summary.image('slice_{}_epoch_{}'.format(slice_i, epoch_i), image, max_outputs=1).eval()
+                    epoch_chart = tf.summary.image('slice_{}_epoch_{}'.format(episode_i, epoch_i), image, max_outputs=1).eval()
 
                     # Add Tensorboard summaries
                     epoch_summary = tf.Summary()

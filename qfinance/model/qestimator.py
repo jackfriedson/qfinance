@@ -2,18 +2,18 @@ import time
 
 import numpy as np
 import tensorflow as tf
+import tensorflow.contrib.slim as slim
 
 
 class QEstimator(object):
 
     def __init__(self,
                  scope: str,
-                 rnn_cell,
                  n_inputs: int,
                  n_outputs: int,
                  learn_rate: float,
                  renorm_decay: float,
-                 hidden_units: int = None,
+                 fc_units: int = None,
                  summaries_dir: str = None,
                  **kwargs):
         self.scope = scope
@@ -25,41 +25,40 @@ class QEstimator(object):
             self.phase = tf.placeholder(dtype=tf.bool, name='phase')
             self.trace_length = tf.placeholder(dtype=tf.int32, name='trace_length')
 
+            if fc_units is None:
+                fc_units = n_inputs
+
             batch_size = tf.shape(self.inputs)[0]
             rnn_batch_size = tf.reshape(batch_size // self.trace_length, shape=[])
 
             # Normalize inputs
-            self.norm_layer = tf.contrib.layers.batch_norm(self.inputs, renorm=True, renorm_decay=renorm_decay, is_training=self.phase)
+            self.norm_layer = slim.batch_norm(self.inputs, renorm=True, renorm_decay=renorm_decay, is_training=self.phase)
 
             # Fully connected layer
-            self.fc_layer = tf.contrib.layers.fully_connected(self.norm_layer, n_inputs, activation_fn=tf.nn.leaky_relu, biases_initializer=None)
-            self.fc_flat = tf.reshape(self.fc_layer, shape=[rnn_batch_size, self.trace_length, n_inputs])
+            self.fc_layer = slim.fully_connected(self.norm_layer, fc_units, activation_fn=tf.nn.tanh, biases_initializer=None)
+            self.fc_flat = tf.reshape(self.fc_layer, shape=[rnn_batch_size, self.trace_length, fc_units])
 
             # RNN layers
             self.rnn_in = rnn_cell.zero_state(rnn_batch_size, dtype=tf.float32)
-            self.rnn, self.rnn_state = tf.nn.dynamic_rnn(rnn_cell, self.fc_flat, dtype=tf.float32, initial_state=self.rnn_in)
+            self.rnn_cell = tf.contrib.rnn.LSTMCell(num_units=fc_units, state_is_tuple=True, activation=tf.nn.softsign)
+            self.rnn, self.rnn_state = tf.nn.dynamic_rnn(self.rnn_cell, self.fc_flat, dtype=tf.float32, initial_state=self.rnn_in)
             self.rnn = tf.reshape(self.rnn, shape=tf.shape(self.fc_layer))
 
             # Output layer
-            self.output_layer = tf.contrib.layers.fully_connected(self.rnn, n_outputs, activation_fn=None, biases_initializer=None)
+            self.output_layer = slim.fully_connected(self.rnn, n_outputs, activation_fn=None, biases_initializer=None)
 
             gather_indices = tf.range(batch_size) * tf.shape(self.output_layer)[1] + self.actions
             self.predictions = tf.gather(tf.reshape(self.output_layer, [-1]), gather_indices)
 
-            # Mask first half of losses
-            maskA = tf.zeros([rnn_batch_size, self.trace_length // 2])
-            maskB = tf.ones([rnn_batch_size, self.trace_length // 2])
-            mask = tf.reshape(tf.concat([maskA, maskB], 1), [-1])
-            # self.masked_loss = tf.losses.mean_squared_error(self.targets, self.predictions, weights=mask)
-            self.unmasked_loss = tf.losses.mean_squared_error(self.targets, self.predictions)
+            self.loss = tf.losses.mean_squared_error(self.targets, self.predictions)
             self.optimizer = tf.train.AdamOptimizer(learn_rate)
 
             update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
             with tf.control_dependencies(update_ops):
-                self.train_op = self.optimizer.minimize(self.unmasked_loss, global_step=tf.train.get_global_step())
+                self.train_op = self.optimizer.minimize(self.loss, global_step=tf.train.get_global_step())
 
             summaries = [
-                tf.summary.scalar('loss', self.unmasked_loss),
+                tf.summary.scalar('loss', self.loss),
                 tf.summary.scalar('max_q_value', tf.reduce_max(self.output_layer)),
                 tf.summary.histogram('q_values_hist', self.output_layer),
             ]
@@ -96,7 +95,7 @@ class QEstimator(object):
         }
 
         summaries, global_step, _, loss = sess.run([self.summaries, tf.train.get_global_step(),
-                                                    self.train_op, self.unmasked_loss], feed_dict)
+                                                    self.train_op, self.loss], feed_dict)
 
         if self.summary_writer:
             self.summary_writer.add_summary(summaries, global_step)
@@ -112,7 +111,7 @@ class QEstimator(object):
             self.trace_length: 1,
             self.rnn_in: rnn_state
         }
-        return sess.run(self.unmasked_loss, feed_dict)
+        return sess.run(self.loss, feed_dict)
 
 
 class ModelParametersCopier():

@@ -32,7 +32,7 @@ def learn(data_file, **kwargs):
 
         # Model params
         'gamma': 0.99,
-        'learn_rate': 0.001,
+        'learn_rate': 1e-4,
         'renorm_decay': 0.9,
         'rnn_layers': 2,
         'trace_length': 16,
