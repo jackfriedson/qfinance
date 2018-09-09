@@ -113,9 +113,6 @@ class QFinanceAgent(object):
                     targets_batch = reward_batch + gamma * np.amax(q_values_next, axis=1)
                     loss = q_estimator.update(sess, states_batch, action_batch, targets_batch, trace_length, train_rnn_state)
 
-                    if loss < 0:
-                        print(loss)
-
                     rnn_state = next_rnn_state
 
                     training_stats['rewards'].append(reward)
@@ -142,9 +139,6 @@ class QFinanceAgent(object):
                     next_q_values = q_estimator.predict(sess, np.expand_dims(next_state, 0), 1, next_rnn_state, training=False)[0]
                     target = reward + gamma * np.amax(next_q_values)
                     loss = q_estimator.compute_loss(sess, state, action, target, rnn_state)
-
-                    if loss < 0:
-                        print(loss)
 
                     rnn_state = next_rnn_state
 
