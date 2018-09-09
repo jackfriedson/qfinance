@@ -14,7 +14,8 @@ class QEstimator(object):
                  learn_rate: float,
                  renorm_decay: float,
                  hidden_units: int = None,
-                 summaries_dir: str = None):
+                 summaries_dir: str = None,
+                 **kwargs):
         self.scope = scope
 
         with tf.variable_scope(scope):
