@@ -65,8 +65,8 @@ class QFinanceAgent(object):
 
         cell = tf.contrib.rnn.LSTMCell(num_units=n_inputs, state_is_tuple=True, activation=tf.nn.softsign)
         target_cell = tf.contrib.rnn.LSTMCell(num_units=n_inputs, state_is_tuple=True, activation=tf.nn.softsign)
-        q_estimator = QEstimator('q_estimator', cell, n_inputs, n_outputs, summaries_dir=summaries_dir, **kwargs)
-        target_estimator = QEstimator('target_q', target_cell, n_inputs, n_outputs, **kwargs)
+        q_estimator = QEstimator('q_estimator', cell, n_inputs, n_outputs, summaries_dir=summaries_dir)
+        target_estimator = QEstimator('target_q', target_cell, n_inputs, n_outputs)
         estimator_copy = ModelParametersCopier(q_estimator, target_estimator)
 
         epsilon = tf.train.polynomial_decay(epsilon_start, global_step,

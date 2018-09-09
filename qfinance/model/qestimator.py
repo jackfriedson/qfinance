@@ -14,8 +14,7 @@ class QEstimator(object):
                  learn_rate: float,
                  renorm_decay: float,
                  hidden_units: int = None,
-                 summaries_dir: str = None,
-                 **kwargs):
+                 summaries_dir: str = None):
         self.scope = scope
 
         with tf.variable_scope(scope):
@@ -32,7 +31,7 @@ class QEstimator(object):
             self.norm_layer = tf.contrib.layers.batch_norm(self.inputs, renorm=True, renorm_decay=renorm_decay, is_training=self.phase)
 
             # Fully connected layer
-            self.fc_layer = tf.contrib.layers.fully_connected(self.norm_layer, n_inputs, activation_fn=tf.nn.crelu, biases_initializer=None)
+            self.fc_layer = tf.contrib.layers.fully_connected(self.norm_layer, n_inputs, activation_fn=tf.nn.leaky_relu, biases_initializer=None)
             self.fc_flat = tf.reshape(self.fc_layer, shape=[rnn_batch_size, self.trace_length, n_inputs])
 
             # RNN layers
