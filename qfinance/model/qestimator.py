@@ -32,26 +32,24 @@ class QEstimator(object):
             self.norm_layer = tf.contrib.layers.batch_norm(self.inputs, renorm=True, renorm_decay=renorm_decay, is_training=self.phase)
             self.norm_flat = tf.reshape(self.norm_layer, shape=[rnn_batch_size, self.trace_length, n_inputs])
 
-            # RNN Layers
+            # self.hidden_layer = tf.contrib.layers.fully_connected(self.rnn, n_inputs, activation_fn=tf.nn.crelu, biases_initializer=None)
+
+            # RNN layers
             self.rnn_in = rnn_cell.zero_state(rnn_batch_size, dtype=tf.float32)
             self.rnn, self.rnn_state = tf.nn.dynamic_rnn(rnn_cell, self.norm_flat, dtype=tf.float32, initial_state=self.rnn_in)
             self.rnn = tf.reshape(self.rnn, shape=tf.shape(self.norm_layer))
 
-            # Fully connected layers
-            self.hidden_layer = tf.contrib.layers.fully_connected(self.rnn, hidden_units, activation_fn=tf.nn.crelu, biases_initializer=None)
+            # Output layer
             self.output_layer = tf.contrib.layers.fully_connected(self.rnn, n_outputs, activation_fn=None, biases_initializer=None)
 
             gather_indices = tf.range(batch_size) * tf.shape(self.output_layer)[1] + self.actions
             self.predictions = tf.gather(tf.reshape(self.output_layer, [-1]), gather_indices)
 
-            self.losses = tf.squared_difference(self.targets, self.predictions)
-
             # Mask first half of losses
             maskA = tf.zeros([rnn_batch_size, self.trace_length // 2])
             maskB = tf.ones([rnn_batch_size, self.trace_length // 2])
             mask = tf.reshape(tf.concat([maskA, maskB], 1), [-1])
-            self.masked_loss = tf.reduce_mean(tf.multiply(self.losses, mask))
-            self.unmasked_loss = tf.reduce_mean(self.losses)
+            self.masked_loss = tf.losses.mean_squared_error(self.targets, self.predictions, weights=mask)
             self.optimizer = tf.train.AdamOptimizer(learn_rate)
 
             update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
@@ -60,7 +58,7 @@ class QEstimator(object):
 
             summaries = [
                 tf.summary.scalar('loss', self.masked_loss),
-                tf.summary.histogram('loss_hist', self.losses),
+                # tf.summary.histogram('loss_hist', tf.losses.mean_squared_error(self.targets, self.predictions, reduction=None)),
                 tf.summary.histogram('q_values_hist', self.output_layer),
                 tf.summary.scalar('max_q_value', tf.reduce_max(self.output_layer)),
             ]
@@ -113,7 +111,7 @@ class QEstimator(object):
             self.trace_length: 1,
             self.rnn_in: rnn_state
         }
-        return sess.run(self.unmasked_loss, feed_dict)
+        return sess.run(self.masked_loss, feed_dict)
 
 
 class ModelParametersCopier():

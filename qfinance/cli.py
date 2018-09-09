@@ -10,7 +10,7 @@ from environment.common import QFinanceEnvironment
 @click.option('--data-file', type=click.Path(exists=True), help='CSV file to read data from')
 @click.option('--validation-percent', type=float, default=0.2)
 @click.option('--n-folds', type=int, default=10)
-@click.option('--replay-memory-start-size', type=int, default=1000)
+@click.option('--replay-memory-start-size', type=int, default=10000)
 @click.option('--fee', type=float, default=0.002)
 @click.option('--interval', type=str, default='1Min')
 def learn(data_file, **kwargs):
@@ -24,11 +24,10 @@ def learn(data_file, **kwargs):
 
         # Replay Memory
         'replay_batch_size': 32,
-        'replay_memory_max_size': 100000,
+        'replay_memory_max_size': 1000000,
 
         # Regularization
         'dropout_prob': 0.,
-        'regularization_strength': 0.,
         'rnn_dropout_prob': 0.,
 
         # Model params
