@@ -34,7 +34,7 @@ def learn(data_file, **kwargs):
         'gamma': 0.99,
         'learn_rate': 0.001,
         'renorm_decay': 0.9,
-        # 'hidden_units': 10,
+        # 'hidden_units': None,
         'rnn_layers': 2,
         'trace_length': 16,
         'update_target_every': 4

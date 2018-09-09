@@ -29,7 +29,7 @@ class QEstimator(object):
             rnn_batch_size = tf.reshape(batch_size // self.trace_length, shape=[])
 
             if not hidden_units:
-                hidden_units = n_inputs // 2
+                hidden_units = n_inputs
 
             # Normalize inputs
             self.norm_layer = tf.contrib.layers.batch_norm(self.inputs, renorm=True, renorm_decay=renorm_decay, is_training=self.phase)
