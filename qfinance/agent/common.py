@@ -2,7 +2,7 @@ import io
 import functools
 import os
 import time
-from collections import namedtuple
+from collections import defaultdict, namedtuple
 from pathlib import Path
 from typing import Tuple
 
