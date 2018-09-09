@@ -91,7 +91,7 @@ class QFinanceAgent(object):
                 train_bar = progressbar.ProgressBar(term_width=120,
                                                     max_value=self.environment.episode_train_length,
                                                     prefix='Training:')
-                train_rewards = losses = []
+                training_stats = defaultdict(list)
 
                 for state in train_bar(train_slice):
                     # Maybe update the target network
@@ -113,15 +113,18 @@ class QFinanceAgent(object):
                     targets_batch = reward_batch + gamma * np.amax(q_values_next, axis=1)
                     loss = q_estimator.update(sess, states_batch, action_batch, targets_batch, trace_length, train_rnn_state)
 
+                    if loss < 0:
+                        print(loss)
+
                     rnn_state = next_rnn_state
 
-                    train_rewards.append(reward)
-                    losses.append(loss)
+                    training_stats['rewards'].append(reward)
+                    training_stats['losses'].append(loss)
 
                 saver.save(sess, str(self.models_dir/'model.ckpt'))
 
                 # Evaluate the model
-                rewards = val_losses = []
+                validation_stats = defaultdict(list)
                 start_price = self.environment.last_price
                 rnn_state = (np.zeros([1, n_inputs]), np.zeros([1, n_inputs]))
 
@@ -140,10 +143,13 @@ class QFinanceAgent(object):
                     target = reward + gamma * np.amax(next_q_values)
                     loss = q_estimator.compute_loss(sess, state, action, target, rnn_state)
 
+                    if loss < 0:
+                        print(loss)
+
                     rnn_state = next_rnn_state
 
-                    rewards.append(reward)
-                    val_losses.append(loss)
+                    validation_stats['rewards'].append(reward)
+                    validation_stats['losses'].append(loss)
 
                 # Compute outperformance of market return
                 market_return = (self.environment.last_price / start_price) - 1.
@@ -166,11 +172,15 @@ class QFinanceAgent(object):
                 # Add Tensorboard summaries
                 episode_summary = tf.Summary()
                 episode_summary.value.add(simple_value=sess.run(epsilon), tag='episode/train/epsilon')
-                episode_summary.value.add(simple_value=sum(train_rewards), tag='episode/train/reward')
-                episode_summary.value.add(simple_value=np.average(losses), tag='episode/train/averge_loss')
-                episode_summary.value.add(simple_value=sum(rewards), tag='episode/validate/reward')
+                episode_summary.value.add(simple_value=np.average(training_stats['rewards']),
+                                          tag='episode/train/avg_reward')
+                episode_summary.value.add(simple_value=np.average(training_stats['losses']),
+                                          tag='episode/train/avg_loss')
+                episode_summary.value.add(simple_value=np.average(validation_stats['rewards']),
+                                          tag='episode/validate/avg_reward')
+                episode_summary.value.add(simple_value=np.average(validation_stats['losses']),
+                                          tag='episode/validate/avg_loss')
                 episode_summary.value.add(simple_value=outperformance, tag='episode/validate/outperformance')
-                episode_summary.value.add(simple_value=np.average(val_losses), tag='episode/validate/average_loss')
                 q_estimator.summary_writer.add_summary(episode_summary, episode_i)
                 q_estimator.summary_writer.add_summary(episode_chart, episode_i)
                 q_estimator.summary_writer.flush()
