@@ -39,8 +39,8 @@ class QEstimator(object):
             self.fc_flat = tf.reshape(self.fc_layer, shape=[rnn_batch_size, self.trace_length, fc_units])
 
             # RNN layers
-            self.rnn_in = rnn_cell.zero_state(rnn_batch_size, dtype=tf.float32)
             self.rnn_cell = tf.contrib.rnn.LSTMCell(num_units=fc_units, state_is_tuple=True, activation=tf.nn.softsign)
+            self.rnn_in = self.rnn_cell.zero_state(rnn_batch_size, dtype=tf.float32)
             self.rnn, self.rnn_state = tf.nn.dynamic_rnn(self.rnn_cell, self.fc_flat, dtype=tf.float32, initial_state=self.rnn_in)
             self.rnn = tf.reshape(self.rnn, shape=tf.shape(self.fc_layer))
 
