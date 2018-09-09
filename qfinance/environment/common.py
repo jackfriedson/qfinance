@@ -13,7 +13,7 @@ from matplotlib import gridspec
 from environment.dataset_utils import downsample, load_csv_data
 
 
-class QFinanceEnvironment(object):
+class Environment(object):
     actions = ['buy', 'sell', 'hold']
 
     def __init__(self,
@@ -21,7 +21,7 @@ class QFinanceEnvironment(object):
                  interval: str,
                  fee: float,
                  validation_percent: float,
-                 n_folds: int,
+                 n_episodes: int,
                  replay_memory_start_size: int):
         self._full_data = downsample(ohlc_data, interval)
         self._current_state = 0
@@ -32,13 +32,13 @@ class QFinanceEnvironment(object):
 
         self.fee = fee
         self.validation_percent = validation_percent
-        self.n_folds = n_folds
+        self.n_episodes = n_episodes
         self.replay_memory_start_size = replay_memory_start_size
 
         total_length = len(self._full_data) - replay_memory_start_size
         train_percent_ratio = (1-self.validation_percent) / self.validation_percent
-        self.fold_validation_length = int(total_length / (n_folds + train_percent_ratio))
-        self.fold_train_length = int(self.fold_validation_length * train_percent_ratio)
+        self.episode_validation_length = int(total_length / (n_episodes + train_percent_ratio))
+        self.episode_train_length = int(self.episode_validation_length * train_percent_ratio)
 
     def init_orders(self):
         return pd.DataFrame(columns=['buy', 'sell'], index=self._full_data.index)
@@ -52,16 +52,13 @@ class QFinanceEnvironment(object):
         for _ in range(self.replay_memory_start_size):
             yield self.state
 
-    def training_slices(self, epochs: int) -> Iterable[Tuple[Iterable, Iterable]]:
-        for fold_i in range(self.n_folds):
-            slice_start = fold_i * self.fold_validation_length
-            def slice_epochs():
-                for _ in range(epochs):
-                    self._orders = self.init_orders()
-                    self._current_state = slice_start
-                    yield ((self.state for _ in range(self.fold_train_length)),
-                           (self.state for _ in range(self.fold_validation_length)))
-            yield slice_epochs()
+    def episodes(self) -> Iterable[Tuple[Iterable, Iterable]]:
+        for episode_i in range(self.n_episodes):
+            episode_start = episode_i * self.episode_validation_length
+            self._orders = self.init_orders()
+            self._current_state = episode_start
+            yield ((self.state for _ in range(self.episode_train_length)),
+                   (self.state for _ in range(self.episode_validation_length)))
 
     def step(self, action_idx: int, track_orders: bool = False) -> float:
         action = self.actions[action_idx]
@@ -148,8 +145,8 @@ class QFinanceEnvironment(object):
     def n_actions(self) -> int:
         return len(self.actions)
 
-    def total_train_steps(self, epochs: int) -> int:
-        return self.fold_train_length * self.n_folds * epochs
+    def total_train_steps(self) -> int:
+        return self.episode_train_length * self.n_episodes
 
     @property
     def current_timestamp(self):

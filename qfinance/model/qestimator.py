@@ -35,7 +35,7 @@ class QEstimator(object):
             self.norm_layer = slim.batch_norm(self.inputs, renorm=True, renorm_decay=renorm_decay, is_training=self.phase)
 
             # Fully connected layer
-            self.fc_layer = slim.fully_connected(self.norm_layer, fc_units, activation_fn=tf.nn.tanh, biases_initializer=None)
+            self.fc_layer = slim.fully_connected(self.norm_layer, fc_units, activation_fn=tf.nn.leaky_relu, biases_initializer=None)
             self.fc_flat = tf.reshape(self.fc_layer, shape=[rnn_batch_size, self.trace_length, fc_units])
 
             # RNN layers

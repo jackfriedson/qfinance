@@ -3,20 +3,18 @@ from pathlib import Path
 import click
 
 from agent.common import QFinanceAgent
-from environment.common import QFinanceEnvironment
+from environment.common import Environment
 
 
 @click.command()
 @click.option('--data-file', type=click.Path(exists=True), help='CSV file to read data from')
 @click.option('--validation-percent', type=float, default=0.2)
-@click.option('--n-folds', type=int, default=10)
+@click.option('--n-episodes', type=int, default=10)
 @click.option('--replay-memory-start-size', type=int, default=10000)
 @click.option('--fee', type=float, default=0.002)
 @click.option('--interval', type=str, default='1Min')
 def learn(data_file, **kwargs):
     hyperparams = {
-        'epochs': 1,
-
         # Exploration
         'epsilon_decay': 3,
         'epsilon_end': 0.1,
@@ -38,7 +36,7 @@ def learn(data_file, **kwargs):
         'trace_length': 16,
         'update_target_every': 4
     }
-    environment = QFinanceEnvironment.from_csv(data_file, **kwargs)
+    environment = Environment.from_csv(data_file, **kwargs)
     agent = QFinanceAgent(environment, random_seed=999999)
     agent.train(**hyperparams)
 

@@ -12,7 +12,7 @@ import progressbar
 import tensorflow as tf
 
 from agent.experience_buffer import ExperienceBuffer
-from environment.common import QFinanceEnvironment
+from environment.common import Environment
 from model.qestimator import QEstimator, ModelParametersCopier
 
 
@@ -33,14 +33,13 @@ models_dir.mkdir(exist_ok=True)
 
 class QFinanceAgent(object):
 
-    def __init__(self, environment: QFinanceEnvironment, random_seed: int = None) -> None:
+    def __init__(self, environment: Environment, random_seed: int = None) -> None:
         self.timestamp = time.strftime('%Y%m%d_%H%M%S')
         self.models_dir = models_dir/self.timestamp
         self.environment = environment
         self.random_seed = random_seed
 
     def train(self,
-              epochs: int,
               gamma: float,
               epsilon_start: float,
               epsilon_end: float,
@@ -51,8 +50,6 @@ class QFinanceAgent(object):
               update_target_every: int,
               load_model: str = None,
               **kwargs):
-        # TODO: save training params to file for later reference
-
         n_inputs = self.environment.n_state_factors
         n_outputs = self.environment.n_actions
         random = np.random.RandomState(self.random_seed)
@@ -68,7 +65,7 @@ class QFinanceAgent(object):
         estimator_copy = ModelParametersCopier(q_estimator, target_estimator)
 
         epsilon = tf.train.polynomial_decay(epsilon_start, global_step,
-                                            self.environment.total_train_steps(epochs),
+                                            self.environment.total_train_steps(),
                                             end_learning_rate=epsilon_end,
                                             power=epsilon_decay)
         policy = self._make_policy(q_estimator, epsilon, n_outputs, random)
@@ -86,100 +83,97 @@ class QFinanceAgent(object):
                 next_state = self.environment.state
                 replay_memory.add(Transition(state, action, reward, next_state))
 
-            for episode_i, episode in enumerate(self.environment.training_slices(epochs)):
-                for epoch_i, (train_slice, validation_slice) in enumerate(episode):
-                    absolute_epoch = (episode_i * epochs) + epoch_i
+            for episode_i, (train_slice, validation_slice) in enumerate(self.environment.episodes()):
+                replay_memory.new_episode()
+                rnn_state = (np.zeros([1, n_inputs]), np.zeros([1, n_inputs]))
 
-                    replay_memory.new_episode()
-                    rnn_state = (np.zeros([1, n_inputs]), np.zeros([1, n_inputs]))
+                click.echo('\nEpisode {}'.format(episode_i))
+                train_bar = progressbar.ProgressBar(term_width=120,
+                                                    max_value=self.environment.episode_train_length,
+                                                    prefix='Training:')
+                train_rewards = losses = []
 
-                    click.echo('\nSlice {}; Epoch {}'.format(episode_i, epoch_i))
-                    train_bar = progressbar.ProgressBar(term_width=120,
-                                                        max_value=self.environment.fold_train_length,
-                                                        prefix='Training:')
-                    train_rewards = losses = []
+                for state in train_bar(train_slice):
+                    # Maybe update the target network
+                    if (sess.run(global_step) // replay_batch_size) % update_target_every == 0:
+                        estimator_copy.make(sess)
 
-                    for state in train_bar(train_slice):
-                        # Maybe update the target network
-                        if (sess.run(global_step) // replay_batch_size) % update_target_every == 0:
-                            estimator_copy.make(sess)
+                    # Make a prediction
+                    action, next_rnn_state = policy(sess, state, rnn_state)
+                    reward = self.environment.step(action)
+                    next_state = self.environment.state
 
-                        # Make a prediction
-                        action, next_rnn_state = policy(sess, state, rnn_state)
-                        reward = self.environment.step(action)
-                        next_state = self.environment.state
+                    replay_memory.add(Transition(state, action, reward, next_state))
+                    samples = replay_memory.sample(replay_batch_size, trace_length)
+                    states_batch, action_batch, reward_batch, next_states_batch = map(np.array, zip(*samples))
 
-                        replay_memory.add(Transition(state, action, reward, next_state))
-                        samples = replay_memory.sample(replay_batch_size, trace_length)
-                        states_batch, action_batch, reward_batch, next_states_batch = map(np.array, zip(*samples))
+                    # Train the network
+                    train_rnn_state = (np.zeros([replay_batch_size, n_inputs]), np.zeros([replay_batch_size, n_inputs]))
+                    q_values_next = target_estimator.predict(sess, next_states_batch, trace_length, train_rnn_state)[0]
+                    targets_batch = reward_batch + gamma * np.amax(q_values_next, axis=1)
+                    loss = q_estimator.update(sess, states_batch, action_batch, targets_batch, trace_length, train_rnn_state)
 
-                        # Train the network
-                        train_rnn_state = (np.zeros([replay_batch_size, n_inputs]), np.zeros([replay_batch_size, n_inputs]))
-                        q_values_next = target_estimator.predict(sess, next_states_batch, trace_length, train_rnn_state)[0]
-                        targets_batch = reward_batch + gamma * np.amax(q_values_next, axis=1)
-                        loss = q_estimator.update(sess, states_batch, action_batch, targets_batch, trace_length, train_rnn_state)
+                    rnn_state = next_rnn_state
 
-                        rnn_state = next_rnn_state
+                    train_rewards.append(reward)
+                    losses.append(loss)
 
-                        train_rewards.append(reward)
-                        losses.append(loss)
+                saver.save(sess, str(self.models_dir/'model.ckpt'))
 
-                    saver.save(sess, str(self.models_dir/'model.ckpt'))
+                # Evaluate the model
+                rewards = val_losses = []
+                start_price = self.environment.last_price
+                rnn_state = (np.zeros([1, n_inputs]), np.zeros([1, n_inputs]))
 
-                    # Evaluate the model
-                    rewards = val_losses = []
-                    start_price = self.environment.last_price
-                    rnn_state = (np.zeros([1, n_inputs]), np.zeros([1, n_inputs]))
+                val_bar = progressbar.ProgressBar(term_width=120,
+                                                  max_value=self.environment.episode_validation_length,
+                                                  prefix='Evaluating:')
 
-                    val_bar = progressbar.ProgressBar(term_width=120,
-                                                      max_value=self.environment.fold_validation_length,
-                                                      prefix='Evaluating:')
+                for state in val_bar(validation_slice):
+                    q_values, next_rnn_state = q_estimator.predict(sess, np.expand_dims(state, 0), 1, rnn_state, training=False)
+                    action = np.argmax(q_values)
+                    reward = self.environment.step(action, track_orders=True)
 
-                    for state in val_bar(validation_slice):
-                        q_values, next_rnn_state = q_estimator.predict(sess, np.expand_dims(state, 0), 1, rnn_state, training=False)
-                        action = np.argmax(q_values)
-                        reward = self.environment.step(action, track_orders=True)
+                    # Calculate validation loss for summaries
+                    next_state = self.environment.state
+                    next_q_values = q_estimator.predict(sess, np.expand_dims(next_state, 0), 1, next_rnn_state, training=False)[0]
+                    target = reward + gamma * np.amax(next_q_values)
+                    loss = q_estimator.compute_loss(sess, state, action, target, rnn_state)
 
-                        # Calculate validation loss for summaries
-                        next_state = self.environment.state
-                        next_q_values = q_estimator.predict(sess, np.expand_dims(next_state, 0), 1, next_rnn_state, training=False)[0]
-                        target = reward + gamma * np.amax(next_q_values)
-                        loss = q_estimator.compute_loss(sess, state, action, target, rnn_state)
+                    rnn_state = next_rnn_state
 
-                        rnn_state = next_rnn_state
+                    rewards.append(reward)
+                    val_losses.append(loss)
 
-                        rewards.append(reward)
-                        val_losses.append(loss)
+                # Compute outperformance of market return
+                market_return = (self.environment.last_price / start_price) - 1.
+                position_value = start_price
+                for return_val in self.environment.order_returns():
+                    position_value *= 1 + return_val
+                algorithm_return = (position_value / start_price) - 1.
+                outperformance = algorithm_return - market_return
+                click.echo('Market return: {:.2f}%'.format(100 * market_return))
+                click.echo('Outperformance: {:+.2f}%'.format(100 * outperformance))
 
-                    # Compute outperformance of market return
-                    market_return = (self.environment.last_price / start_price) - 1.
-                    position_value = start_price
-                    for return_val in self.environment.order_returns():
-                        position_value *= 1 + return_val
-                    algorithm_return = (position_value / start_price) - 1.
-                    outperformance = algorithm_return - market_return
-                    click.echo('Market return: {:.2f}%'.format(100 * market_return))
-                    click.echo('Outperformance: {:+.2f}%'.format(100 * outperformance))
+                # Plot results and save to summary file
+                buf = io.BytesIO()
+                self.environment.plot(save_to=buf)
+                buf.seek(0)
+                image = tf.image.decode_png(buf.getvalue(), channels=4)
+                image = tf.expand_dims(image, 0)
+                episode_chart = tf.summary.image('episode_{}'.format(episode_i), image, max_outputs=1).eval()
 
-                    # Plot results and save to summary file
-                    buf = io.BytesIO()
-                    self.environment.plot(save_to=buf)
-                    buf.seek(0)
-                    image = tf.image.decode_png(buf.getvalue(), channels=4)
-                    image = tf.expand_dims(image, 0)
-                    epoch_chart = tf.summary.image('slice_{}_epoch_{}'.format(episode_i, epoch_i), image, max_outputs=1).eval()
-
-                    # Add Tensorboard summaries
-                    epoch_summary = tf.Summary()
-                    epoch_summary.value.add(simple_value=sess.run(epsilon), tag='epoch/train/epsilon')
-                    epoch_summary.value.add(simple_value=sum(train_rewards), tag='epoch/train/reward')
-                    epoch_summary.value.add(simple_value=np.average(losses), tag='epoch/train/averge_loss')
-                    epoch_summary.value.add(simple_value=sum(rewards), tag='epoch/validate/reward')
-                    epoch_summary.value.add(simple_value=outperformance, tag='epoch/validate/outperformance')
-                    epoch_summary.value.add(simple_value=np.average(val_losses), tag='epoch/validate/average_loss')
-                    q_estimator.summary_writer.add_summary(epoch_summary, absolute_epoch)
-                    q_estimator.summary_writer.add_summary(epoch_chart, absolute_epoch)
-                    q_estimator.summary_writer.flush()
+                # Add Tensorboard summaries
+                episode_summary = tf.Summary()
+                episode_summary.value.add(simple_value=sess.run(epsilon), tag='episode/train/epsilon')
+                episode_summary.value.add(simple_value=sum(train_rewards), tag='episode/train/reward')
+                episode_summary.value.add(simple_value=np.average(losses), tag='episode/train/averge_loss')
+                episode_summary.value.add(simple_value=sum(rewards), tag='episode/validate/reward')
+                episode_summary.value.add(simple_value=outperformance, tag='episode/validate/outperformance')
+                episode_summary.value.add(simple_value=np.average(val_losses), tag='episode/validate/average_loss')
+                q_estimator.summary_writer.add_summary(episode_summary, episode_i)
+                q_estimator.summary_writer.add_summary(episode_chart, episode_i)
+                q_estimator.summary_writer.flush()
 
 
     @staticmethod
