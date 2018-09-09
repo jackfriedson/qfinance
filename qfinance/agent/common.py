@@ -77,6 +77,7 @@ class QFinanceAgent(object):
 
         saver = tf.train.Saver()
         with tf.Session() as sess:
+            q_estimator.summary_writer.add_graph(sess.graph)
             sess.run(tf.global_variables_initializer())
 
             click.echo('Initializing replay memory...')

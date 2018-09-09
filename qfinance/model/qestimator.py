@@ -59,10 +59,9 @@ class QEstimator(object):
                 self.train_op = self.optimizer.minimize(self.masked_loss, global_step=tf.train.get_global_step())
 
             summaries = [
-                tf.summary.scalar('masked_loss', self.masked_loss),
-                tf.summary.scalar('unmasked_loss', self.unmasked_loss),
-                tf.summary.histogram('q_values_hist', self.output_layer),
+                tf.summary.scalar('loss', self.unmasked_loss),
                 tf.summary.scalar('max_q_value', tf.reduce_max(self.output_layer)),
+                tf.summary.histogram('q_values_hist', self.output_layer),
             ]
             summaries += [
                 tf.summary.histogram('action_{}_q_values_hist'.format(i), self.output_layer[i])
