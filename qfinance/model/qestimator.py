@@ -95,7 +95,7 @@ class QEstimator(object):
             self.phase: True,
             self.trace_length: trace_length,
             self.rnn_in: rnn_state,
-            self.keep_prob: 1.0,
+            self.keep_prob: 1.,
         }
 
         summaries, global_step, _, loss = sess.run([self.summaries, tf.train.get_global_step(),
@@ -114,7 +114,7 @@ class QEstimator(object):
             self.phase: False,
             self.trace_length: 1,
             self.rnn_in: rnn_state,
-            self.keep_prob: 1.0,
+            self.keep_prob: 1.,
         }
         return sess.run(self.loss, feed_dict)
 
