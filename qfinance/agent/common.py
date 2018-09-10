@@ -68,7 +68,7 @@ class QFinanceAgent(object):
                                             self.environment.total_train_steps(),
                                             end_learning_rate=epsilon_end,
                                             power=epsilon_decay)
-        policy = self._make_policy(q_estimator, epsilon, n_outputs, random)
+        policy = self._make_policy(q_estimator, epsilon)
 
         saver = tf.train.Saver()
         with tf.Session() as sess:
@@ -179,16 +179,12 @@ class QFinanceAgent(object):
                 q_estimator.summary_writer.add_summary(episode_chart, episode_i)
                 q_estimator.summary_writer.flush()
 
-
     @staticmethod
-    def _make_policy(estimator, epsilon, n_actions, random_state):
+    def _make_policy(estimator, epsilon):
         def policy_fn(sess, observation, rnn_state):
-            epsilon_val = sess.run(epsilon)
-            q_values, new_rnn_state = estimator.predict(sess, np.expand_dims(observation, 0), 1, rnn_state)
-            best_action = np.argmax(q_values)
-            action_probs = np.ones(n_actions, dtype=float) * epsilon_val / n_actions
-            action_probs[best_action] += (1.0 - epsilon_val)
-            return random_state.choice(np.arange(len(action_probs)), p=action_probs), new_rnn_state
+            keep_prob = 1.1 - sess.run(epsilon)
+            q_values, new_rnn_state = estimator.predict(sess, np.expand_dims(observation, 0), 1, rnn_state, keep_prob)
+            return np.argmax(q_values), new_rnn_state
         return policy_fn
 
     def run(self):

@@ -24,6 +24,7 @@ class QEstimator(object):
             self.actions = tf.placeholder(shape=[None], dtype=tf.int32, name='actions')
             self.phase = tf.placeholder(dtype=tf.bool, name='phase')
             self.trace_length = tf.placeholder(dtype=tf.int32, name='trace_length')
+            self.keep_prob = tf.placeholder(dtype=tf.float32, name='keep_per')
 
             if fc_units is None:
                 fc_units = n_inputs
@@ -45,7 +46,8 @@ class QEstimator(object):
             self.rnn = tf.reshape(self.rnn, shape=tf.shape(self.fc_layer))
 
             # Output layer
-            self.output_layer = slim.fully_connected(self.rnn, n_outputs, activation_fn=None, biases_initializer=None)
+            self.dropout = slim.dropout(self.rnn, keep_prob=self.keep_prob, is_training=self.phase)
+            self.output_layer = slim.fully_connected(self.dropout, n_outputs, activation_fn=None, biases_initializer=None)
 
             gather_indices = tf.range(batch_size) * tf.shape(self.output_layer)[1] + self.actions
             self.predictions = tf.gather(tf.reshape(self.output_layer, [-1]), gather_indices)
@@ -75,12 +77,13 @@ class QEstimator(object):
                 summary_dir.mkdir(exist_ok=True)
                 self.summary_writer = tf.summary.FileWriter(str(summary_dir))
 
-    def predict(self, sess, state, trace_length, rnn_state, training: bool = True):
+    def predict(self, sess, state, trace_length, rnn_state, keep_prob: float = 1.0, training: bool = True):
         feed_dict = {
             self.inputs: state,
             self.phase: training,
             self.trace_length: trace_length,
-            self.rnn_in: rnn_state
+            self.rnn_in: rnn_state,
+            self.keep_prob: keep_prob
         }
         return sess.run([self.output_layer, self.rnn_state], feed_dict)
 
@@ -91,7 +94,8 @@ class QEstimator(object):
             self.actions: action,
             self.phase: True,
             self.trace_length: trace_length,
-            self.rnn_in: rnn_state
+            self.rnn_in: rnn_state,
+            self.keep_prob: 1.0,
         }
 
         summaries, global_step, _, loss = sess.run([self.summaries, tf.train.get_global_step(),
@@ -109,7 +113,8 @@ class QEstimator(object):
             self.actions: np.array([action]),
             self.phase: False,
             self.trace_length: 1,
-            self.rnn_in: rnn_state
+            self.rnn_in: rnn_state,
+            self.keep_prob: 1.0,
         }
         return sess.run(self.loss, feed_dict)
 
