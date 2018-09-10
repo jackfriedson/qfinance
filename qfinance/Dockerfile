@@ -18,5 +18,5 @@ CMD ["python", "cli.py", \
      "--data-file=stock_data.csv", \
      "--n-episodes=100", \
      "--interval=H", \
-     "--fee=0.01" \
+     "--fee=0.001" \
   ]

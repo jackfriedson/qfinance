@@ -64,10 +64,6 @@ class QEstimator(object):
                 tf.summary.scalar('max_q_value', tf.reduce_max(self.output_layer)),
                 tf.summary.histogram('q_values_hist', self.output_layer),
             ]
-            summaries += [
-                tf.summary.histogram('action_{}_q_values_hist'.format(i), self.output_layer[i])
-                for i in range(n_outputs)
-            ]
             self.summaries = tf.summary.merge(summaries)
 
             self.summary_writer = None
