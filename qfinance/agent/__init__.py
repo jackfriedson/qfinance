@@ -1,1 +1,1 @@
-from .common import QFinanceAgent
+from .core import Agent

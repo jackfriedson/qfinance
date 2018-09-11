@@ -1,8 +1,17 @@
 FROM tensorflow/tensorflow:latest-gpu-py3
 WORKDIR /usr/src/qfinance
 
-RUN apt-get update && \
-    apt-get -y install python3-tk
+# Install python3-tk
+RUN apt-get update \
+    && apt-get -y install python3-tk
+
+# Install TA-Lib
+RUN wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz \
+    && tar xvfz ta-lib-0.4.0-src.tar.gz \
+    && cd ta-lib-0.4.0 \
+    && ./configure \
+    && make \
+    && make install
 
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt

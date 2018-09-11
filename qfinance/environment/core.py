@@ -1,6 +1,6 @@
 import io
 from pathlib import Path
-from typing import Iterable, Tuple, Union
+from typing import Iterable, List, Tuple, Union
 
 import click
 import matplotlib
@@ -9,6 +9,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib import gridspec
+from talib.abstract import Function
 
 from environment.dataset_utils import downsample, load_csv_data
 
@@ -18,17 +19,20 @@ class Environment(object):
 
     def __init__(self,
                  ohlc_data: pd.DataFrame,
+                 indicators: List[str],
                  interval: str,
                  fee: float,
                  validation_percent: float,
                  n_episodes: int,
                  replay_memory_start_size: int):
-        self._full_data = downsample(ohlc_data, interval)
+        self._ohlc_data = downsample(ohlc_data, interval)
+        self._indicators = {name: Function(name) for name in indicators}
+        self._full_data = self._apply_indicators()
+        self._orders = self._init_orders()
+
         self._current_state = 0
         self._current_position = None
         self._order_open_ts = None
-        self._indicators = []
-        self._orders = self.init_orders()
 
         self.fee = fee
         self.validation_percent = validation_percent
@@ -39,9 +43,20 @@ class Environment(object):
         train_percent_ratio = (1-self.validation_percent) / self.validation_percent
         self.episode_validation_length = int(total_length / (n_episodes + train_percent_ratio))
         self.episode_train_length = int(self.episode_validation_length * train_percent_ratio)
-
-    def init_orders(self):
+        
+    def _init_orders(self):
         return pd.DataFrame(columns=['buy', 'sell'], index=self._full_data.index)
+
+    def _apply_indicators(self):
+        full_data = self._ohlc_data
+
+        for name, func in self._indicators.items():
+            indicator_data = func(self._ohlc_data)
+            if isinstance(indicator_data, pd.Series):
+                indicator_data = indicator_data.to_frame(name)
+            full_data = full_data.join(indicator_data)
+
+        return full_data.dropna()
 
     @classmethod
     def from_csv(cls, csv_path: str, **params):
@@ -55,7 +70,7 @@ class Environment(object):
     def episodes(self) -> Iterable[Tuple[Iterable, Iterable]]:
         for episode_i in range(self.n_episodes):
             episode_start = episode_i * self.episode_validation_length
-            self._orders = self.init_orders()
+            self._orders = self._init_orders()
             self._current_state = episode_start
             yield ((self.state for _ in range(self.episode_train_length)),
                    (self.state for _ in range(self.episode_validation_length)))

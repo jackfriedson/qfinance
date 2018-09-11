@@ -12,7 +12,7 @@ import progressbar
 import tensorflow as tf
 
 from agent.experience_buffer import ExperienceBuffer
-from environment.common import Environment
+from environment.core import Environment
 from model.qestimator import QEstimator, ModelParametersCopier
 
 
@@ -31,7 +31,7 @@ models_dir = experiments_dir/'models'
 models_dir.mkdir(exist_ok=True)
 
 
-class QFinanceAgent(object):
+class Agent(object):
 
     def __init__(self, environment: Environment, random_seed: int = None) -> None:
         self.timestamp = time.strftime('%Y%m%d_%H%M%S')

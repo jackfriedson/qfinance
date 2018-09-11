@@ -2,8 +2,8 @@ from pathlib import Path
 
 import click
 
-from agent.common import QFinanceAgent
-from environment.common import Environment
+from agent import Agent
+from environment import Environment
 
 
 @click.command()
@@ -14,6 +14,12 @@ from environment.common import Environment
 @click.option('--fee', type=float, default=0.002)
 @click.option('--interval', type=str, default='1Min')
 def learn(data_file, **kwargs):
+    indicators = [
+        'macd',
+        'rsi',
+        'mom',
+        'stoch'
+    ]
     hyperparams = {
         # Exploration
         'epsilon_decay': 3,
@@ -36,8 +42,8 @@ def learn(data_file, **kwargs):
         'trace_length': 16,
         'update_target_every': 4
     }
-    environment = Environment.from_csv(data_file, **kwargs)
-    agent = QFinanceAgent(environment, random_seed=999999)
+    environment = Environment.from_csv(data_file, indicators=indicators, **kwargs)
+    agent = Agent(environment, random_seed=999999)
     agent.train(**hyperparams)
 
 
