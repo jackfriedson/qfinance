@@ -9,7 +9,7 @@ RUN apt-get update \
 RUN apt-get -y install wget \
     && wget http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-src.tar.gz \
     && tar xvfz ta-lib-0.4.0-src.tar.gz \
-    && cd ta-lib-0.4.0 \
+    && cd ta-lib \
     && ./configure \
     && make \
     && make install
