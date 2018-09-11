@@ -43,7 +43,7 @@ class Environment(object):
         train_percent_ratio = (1-self.validation_percent) / self.validation_percent
         self.episode_validation_length = int(total_length / (n_episodes + train_percent_ratio))
         self.episode_train_length = int(self.episode_validation_length * train_percent_ratio)
-        
+
     def _init_orders(self):
         return pd.DataFrame(columns=['buy', 'sell'], index=self._full_data.index)
 
