@@ -13,7 +13,6 @@ RUN apt-get -y install wget \
     && ./configure --prefix=/usr \
     && make \
     && make install
-
 RUN rm -R ta-lib ta-lib-0.4.0-src.tar.gz
 
 COPY requirements.txt ./

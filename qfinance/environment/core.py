@@ -15,7 +15,7 @@ from environment.dataset_utils import downsample, load_csv_data
 
 
 class Environment(object):
-    actions = ['buy', 'sell', 'hold']
+    actions = ['long', 'short', 'none']
 
     def __init__(self,
                  ohlc_data: pd.DataFrame,
@@ -31,7 +31,7 @@ class Environment(object):
         self._orders = self._init_orders()
 
         self._current_state = 0
-        self._current_position = None
+        self._current_position = 'none'
         self._order_open_ts = None
 
         self.fee = fee
@@ -77,32 +77,30 @@ class Environment(object):
 
     def step(self, action_idx: int, track_orders: bool = False) -> float:
         action = self.actions[action_idx]
+        position_change = action == self._current_position
+        self._current_position = action
+
         start_state = self._full_data.iloc[self._current_state]
         self._next()
-        end_state = self._full_data.iloc[self._current_state]
 
-        if action == 'buy':
+        if action == 'long':
             reward = self.period_return
-            if self._current_position is None:
-                self._current_position = 'long'
-                reward -= self.fee
-                if track_orders:
-                    self._order_open_ts = self.current_timestamp
-                    self._orders.loc[self._order_open_ts, 'buy'] = start_state['close']
-            return reward
-
-        elif action == 'sell':
+            if position_change and track_orders:
+                self._order_open_ts = self.current_timestamp
+                self._orders.loc[self._order_open_ts, 'buy'] = start_state['close']
+        elif action == 'short':
             reward = -self.period_return
-            if self._current_position == 'long':
-                self._current_position = None
-                reward -= self.fee
-                if track_orders:
-                    self._orders.loc[self._order_open_ts, 'sell'] = start_state['close']
-                    self._order_open_ts = None
-            return reward
+            if position_change and track_orders:
+                self._orders.loc[self._order_open_ts, 'sell'] = start_state['close']
+                self._order_open_ts = None
+        else:
+            assert action == 'none'
+            reward = 0.
 
-        elif action == 'hold':
-            return self.period_return if self._current_position == 'long' else -self.period_return
+        if position_change:
+            reward -= self.fee
+
+        return reward
 
     @property
     def period_return(self):
