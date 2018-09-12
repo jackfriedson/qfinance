@@ -29,6 +29,7 @@ class Environment(object):
         self._indicators = {name: Function(name) for name in indicators}
         self._full_data = self._apply_indicators()
         self._orders = self._init_orders()
+        self._positions = self._init_positions()
 
         self._current_state = 0
         self._current_position = 'none'
@@ -46,6 +47,9 @@ class Environment(object):
 
     def _init_orders(self):
         return pd.DataFrame(columns=['buy', 'sell'], index=self._full_data.index)
+
+    def _init_positions(self):
+        return pd.Series(index=self._full_data.index)
 
     def _apply_indicators(self):
         full_data = self._ohlc_data
@@ -79,7 +83,7 @@ class Environment(object):
         action = self.actions[action_idx]
         position_change = action == self._current_position
         self._current_position = action
-
+        self._positions.iloc[self._current_state] = action
         start_state = self._full_data.iloc[self._current_state]
         self._next()
 
@@ -126,17 +130,23 @@ class Environment(object):
         # Plot long and short positions
         ax0 = fig.add_subplot(gs[0])
         ax0.set_title('Price ({})'.format(data_column))
-        ax0.plot(self._full_data.index, self._full_data[data_column], 'blue')
+        ax0.plot(self._full_data.index, self._full_data[data_column], 'black')
+
+        longs = self._full_data[data_column][self._positions == 'long']
+        longs.plot(ax=ax0, style='g')
+
+        shorts = self._full_data[data_column][self._positions == 'short']
+        shorts.plot(ax=ax0, style='r')
 
         if plot_orders:
             orders = self._orders.dropna()
             ax0.plot(orders.index, orders['buy'], color='k', marker='^', linestyle='None')
             ax0.plot(orders.index, orders['sell'], color='k', marker='v', linestyle='None')
 
-        if plot_indicators:
-            for i, indicator in enumerate(self._indicators, start=1):
-                ax_ind = fig.add_subplot(gs[i])
-                indicator.plot(ax_ind)
+        # if plot_indicators:
+        #     for i, indicator in enumerate(self._indicators, start=1):
+        #         ax_ind = fig.add_subplot(gs[i])
+        #         indicator.plot(ax_ind)
 
         fig.autofmt_xdate()
         plt.tight_layout()
