@@ -133,9 +133,11 @@ class Environment(object):
         ax0.plot(self._full_data.index, self._full_data[data_column], 'black')
 
         longs = self._full_data[data_column][self._positions == 'long']
+        longs = longs.resample(self._full_data.index.freq).fillna(None)
         longs.plot(ax=ax0, style='g')
 
         shorts = self._full_data[data_column][self._positions == 'short']
+        shorts = shorts.resample(self._full_data.index.freq).fillna(None)
         shorts.plot(ax=ax0, style='r')
 
         if plot_orders:
