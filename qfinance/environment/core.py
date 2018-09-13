@@ -31,6 +31,7 @@ class Environment(object):
         self._orders = self._init_orders()
         self._positions = self._init_positions()
 
+        self._episode_start = 0
         self._current_state = 0
         self._current_position = 'none'
         self._order_open_ts = None
@@ -73,9 +74,9 @@ class Environment(object):
 
     def episodes(self) -> Iterable[Tuple[Iterable, Iterable]]:
         for episode_i in range(self.n_episodes):
-            episode_start = episode_i * self.episode_validation_length
+            self._episode_start = episode_i * self.episode_validation_length
             self._orders = self._init_orders()
-            self._current_state = episode_start
+            self._current_state = self._episode_start
             yield ((self.state for _ in range(self.episode_train_length)),
                    (self.state for _ in range(self.episode_validation_length)))
 
@@ -126,18 +127,19 @@ class Environment(object):
         ratios = [3] if not plot_indicators else [3] + ([1] * len(self._indicators))
         n_subplots = 1 if not plot_indicators else 1 + len(self._indicators)
         gs = gridspec.GridSpec(n_subplots, 1, height_ratios=ratios)
+        plot_data = self._full_data.iloc[self._episode_start:self._current_state]
 
         # Plot long and short positions
         ax0 = fig.add_subplot(gs[0])
         ax0.set_title('Price ({})'.format(data_column))
-        ax0.plot(self._full_data.index, self._full_data[data_column], 'black')
+        ax0.plot(plot_data.index, plot_data[data_column], 'black')
 
-        longs = self._full_data[data_column][self._positions == 'long']
-        longs = longs.resample(self._full_data.index.freq).fillna(None)
+        longs = plot_data[data_column][self._positions == 'long']
+        longs = longs.resample(plot_data.index.freq).fillna(None)
         longs.plot(ax=ax0, style='g')
 
-        shorts = self._full_data[data_column][self._positions == 'short']
-        shorts = shorts.resample(self._full_data.index.freq).fillna(None)
+        shorts = plot_data[data_column][self._positions == 'short']
+        shorts = shorts.resample(plot_data.index.freq).fillna(None)
         shorts.plot(ax=ax0, style='r')
 
         if plot_orders:
