@@ -3,7 +3,7 @@ from pathlib import Path
 import click
 
 from agent import Agent
-from environment import Environment
+from environment import Dataset, Environment
 
 
 @click.command()
@@ -13,7 +13,8 @@ from environment import Environment
 @click.option('--replay-memory-start-size', type=int, default=10000)
 @click.option('--fee', type=float, default=0.002)
 @click.option('--interval', type=str, default='1Min')
-def learn(data_file, **kwargs):
+@click.option('--load-model', type=str, default=None)
+def learn(data_file, interval, load_model, **kwargs):
     indicators = [
         'macd',
         'rsi',
@@ -43,9 +44,10 @@ def learn(data_file, **kwargs):
         'trace_length': 16,
         'update_target_every': 4
     }
-    environment = Environment.from_csv(data_file, indicators=indicators, **kwargs)
+    data = Dataset.from_csv(data_file, interval=interval, indicators=indicators)
+    environment = Environment(data, **kwargs)
     agent = Agent(environment, random_seed=999999)
-    agent.train(**hyperparams)
+    agent.train(load_model=load_model, **hyperparams)
 
 
 if __name__ == '__main__':

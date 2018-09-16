@@ -9,25 +9,20 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from matplotlib import gridspec
-from talib.abstract import Function
 
-from environment.dataset_utils import downsample, load_csv_data
+from environment.dataset import Dataset
 
 
 class Environment(object):
     actions = ['long', 'short', 'none']
 
     def __init__(self,
-                 ohlc_data: pd.DataFrame,
-                 indicators: List[str],
-                 interval: str,
+                 dataset: Dataset,
                  fee: float,
                  validation_percent: float,
                  n_episodes: int,
                  replay_memory_start_size: int):
-        self._ohlc_data = downsample(ohlc_data, interval)
-        self._indicators = {name: Function(name) for name in indicators}
-        self._full_data = self._apply_indicators()
+        self._data = dataset
         self._orders = self._init_orders()
         self._positions = self._init_positions()
 
@@ -41,32 +36,16 @@ class Environment(object):
         self.n_episodes = n_episodes
         self.replay_memory_start_size = replay_memory_start_size
 
-        total_length = len(self._full_data) - replay_memory_start_size
+        total_length = len(self._data) - replay_memory_start_size
         train_percent_ratio = (1-self.validation_percent) / self.validation_percent
         self.episode_validation_length = int(total_length / (n_episodes + train_percent_ratio))
         self.episode_train_length = int(self.episode_validation_length * train_percent_ratio)
 
     def _init_orders(self):
-        return pd.DataFrame(columns=['buy', 'sell'], index=self._full_data.index)
+        return pd.DataFrame(columns=['buy', 'sell'], index=self._data.index)
 
     def _init_positions(self):
-        return pd.Series(index=self._full_data.index)
-
-    def _apply_indicators(self):
-        full_data = self._ohlc_data
-
-        for name, func in self._indicators.items():
-            indicator_data = func(self._ohlc_data)
-            if isinstance(indicator_data, pd.Series):
-                indicator_data = indicator_data.to_frame(name)
-            full_data = full_data.join(indicator_data)
-
-        return full_data.dropna()
-
-    @classmethod
-    def from_csv(cls, csv_path: str, **params):
-        df = load_csv_data(Path(csv_path))
-        return cls(df, **params)
+        return pd.Series(index=self._data.index, dtype=str)
 
     def replay_memories(self) -> pd.DataFrame:
         for _ in range(self.replay_memory_start_size):
@@ -84,8 +63,8 @@ class Environment(object):
         action = self.actions[action_idx]
         position_change = action == self._current_position
         self._current_position = action
-        self._positions.iloc[self._current_state] = action
-        start_state = self._full_data.iloc[self._current_state]
+        self._positions[self._current_state] = action
+        start_state = self._data[self._current_state]
         self._next()
 
         if action == 'long':
@@ -111,8 +90,8 @@ class Environment(object):
     def period_return(self):
         if self._current_state == 0:
             raise ValueError('Cannot calculate return in state 0')
-        return (self._full_data.iloc[self._current_state]['close'] /
-                self._full_data.iloc[self._current_state-1]['close']) - 1.0
+        return (self._data[self._current_state]['close'] /
+                self._data[self._current_state-1]['close']) - 1.0
 
     def order_returns(self):
         orders = self._orders.dropna()
@@ -127,7 +106,7 @@ class Environment(object):
         ratios = [3] if not plot_indicators else [3] + ([1] * len(self._indicators))
         n_subplots = 1 if not plot_indicators else 1 + len(self._indicators)
         gs = gridspec.GridSpec(n_subplots, 1, height_ratios=ratios)
-        plot_data = self._full_data.iloc[self._episode_start:self._current_state]
+        plot_data = self._data[self._episode_start:self._current_state]
 
         # Plot long and short positions
         ax0 = fig.add_subplot(gs[0])
@@ -162,11 +141,11 @@ class Environment(object):
 
     @property
     def state(self) -> np.ndarray:
-        return self._full_data.iloc[self._current_state].values
+        return self._data[self._current_state].values
 
     @property
     def n_state_factors(self) -> int:
-        return len(self._full_data.iloc[0])
+        return len(self._data[0])
 
     @property
     def n_actions(self) -> int:
@@ -177,11 +156,11 @@ class Environment(object):
 
     @property
     def current_timestamp(self):
-        return self._full_data.index[self._current_state]
+        return self._data.index[self._current_state]
 
     @property
     def last_price(self) -> float:
-        return self._full_data.iloc[self._current_state]['close']
+        return self._data[self._current_state]['close']
 
     def _next(self):
         self._current_state += 1
