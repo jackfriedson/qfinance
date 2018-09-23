@@ -3,18 +3,19 @@ from pathlib import Path
 import click
 
 from agent import Agent
-from environment import Dataset, Environment
+from environment import CompositeDataset, Environment
 
 
 @click.command()
-@click.option('--data-file', type=click.Path(exists=True), help='CSV file to read data from')
+@click.option('--data-dir', type=click.Path(exists=True),
+              help='Directory of CSV files to read data from')
 @click.option('--validation-percent', type=float, default=0.2)
 @click.option('--n-episodes', type=int, default=10)
 @click.option('--replay-memory-start-size', type=int, default=10000)
 @click.option('--fee', type=float, default=0.002)
 @click.option('--interval', type=str, default='1Min')
 @click.option('--load-model', type=str, default=None)
-def learn(data_file, interval, load_model, **kwargs):
+def learn(data_dir, interval, load_model, **kwargs):
     indicators = [
         'macd',
         'rsi',
@@ -44,7 +45,7 @@ def learn(data_file, interval, load_model, **kwargs):
         'trace_length': 16,
         'update_target_every': 4
     }
-    data = Dataset.from_csv(data_file, interval=interval, indicators=indicators)
+    data = CompositeDataset.from_csv_dir(Path(data_dir), interval=interval, indicators=indicators)
     environment = Environment(data, **kwargs)
     agent = Agent(environment, random_seed=999999)
     agent.train(load_model=load_model, **hyperparams)
