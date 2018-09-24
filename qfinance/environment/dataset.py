@@ -102,7 +102,8 @@ class CompositeDataset(object):
 
     def __init__(self, datasets: List[Dataset]):
         data = {d.name: d._data for d in datasets}
-        self._data = pd.concat(data.values(), keys=data.keys(), axis='columns')
+        self.symbols = list(data.keys())
+        self._data = pd.concat(data.values(), keys=self.symbols, axis='columns')
         self._data = self._data.swaplevel(axis=1)
 
     def __len__(self):
