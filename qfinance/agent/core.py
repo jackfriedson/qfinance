@@ -165,7 +165,7 @@ class Agent(object):
             action, next_rnn_state = estimator.choose_action(sess, np.expand_dims(observation, 0), rnn_state)
             action = action[0]
             if is_training:
-                # TODO: Fix this
+                # TODO: Fix the variance here
                 action = random.normal(action, sess.run(epsilon))
                 action = estimator.apply_softmax(sess, action)
             return action, next_rnn_state

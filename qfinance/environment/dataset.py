@@ -22,7 +22,8 @@ class Dataset(object):
                  name: str,
                  data: pd.DataFrame,
                  interval: str = DEFAULT_FREQ,
-                 indicators: List[str] = None):
+                 indicators: List[str] = None,
+                 drop_columns = None):
         # Init OHLC data
         self.name = name
         self._data = data.tz_localize(DEFAULT_TIMEZONE, ambiguous='infer').tz_convert('UTC')
@@ -34,6 +35,9 @@ class Dataset(object):
         # Init indicators
         self._indicators = {name: Function(name) for name in indicators or []}
         self._apply_indicators()
+
+        if drop_columns:
+            self._data = self._data.drop(drop_columns, axis=1)
 
     def __len__(self):
         return len(self._data)

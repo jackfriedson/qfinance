@@ -20,15 +20,15 @@ from environment import CompositeDataset, Environment
 def learn(data_dir, interval, load_model, **kwargs):
     indicators = [
         # 'macd',
-        'rsi',
+        # 'rsi',
         'mom',
         # 'stoch'
     ]
     hyperparams = {
         # Exploration
         'epsilon_decay': 2,
-        'epsilon_end': 0.1,
-        'epsilon_start': 1.,
+        'epsilon_end': 0.01,
+        'epsilon_start': 0.2,
 
         # Replay Memory
         'batch_size': 64,
@@ -42,7 +42,10 @@ def learn(data_dir, interval, load_model, **kwargs):
         'critic_learn_rate': 1e-3,
         'trace_length': 16,
     }
-    data = CompositeDataset.from_csv_dir(Path(data_dir), interval=interval, indicators=indicators)
+    data = CompositeDataset.from_csv_dir(Path(data_dir),
+                                         interval=interval,
+                                         indicators=indicators,
+                                         drop_columns=['open', 'low'])
     environment = Environment(data, **kwargs)
     agent = Agent(environment, random_seed=999999)
     agent.train(load_model=load_model, **hyperparams)
