@@ -63,10 +63,6 @@ class DDPG(object):
             actor_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='{}/Actor'.format(self.scope))
             critic_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='{}/Critic'.format(self.scope))
 
-            ema = tf.train.ExponentialMovingAverage(decay=1-tau)
-            def ema_getter(getter, name, *args, **kwargs):
-                return ema.average(getter(name, *args, **kwargs))
-
             # Target
             next_batch_norm = tf.layers.batch_normalization(self.next_states,
                                                             name='batch_norm',
@@ -83,6 +79,10 @@ class DDPG(object):
             next_rnn, next_rnn_state = tf.nn.dynamic_rnn(next_rnn_cell, next_flat, dtype=tf.float32,
                                                          initial_state=self.next_rnn_in, scope='rnn')
             next_rnn = tf.reshape(rnn, shape=tf.shape(next_batch_norm), name='rnn_out')
+
+            ema = tf.train.ExponentialMovingAverage(decay=1-tau)
+            def ema_getter(getter, name, *args, **kwargs):
+                return ema.average(getter(name, *args, **kwargs))
 
             target_update = [ema.apply(actor_params), ema.apply(critic_params)]
             a_ = self._build_actor(next_rnn, reuse=True, custom_getter=ema_getter)
@@ -112,28 +112,22 @@ class DDPG(object):
                 summary_dir.mkdir(exist_ok=True)
                 self.summary_writer = tf.summary.FileWriter(str(summary_dir))
 
-    def _build_actor(self, input_layer, reuse=False, custom_getter=None):
-        trainable = not reuse
-        with tf.variable_scope('Actor'):
-            scope = 'Target' if not trainable else 'Network'
-            with tf.variable_scope(scope):
-                fc = slim.fully_connected(input_layer, self.actor_units, activation_fn=tf.nn.relu,
-                                          trainable=trainable)
-                actor_out = slim.fully_connected(fc, self.action_dim, activation_fn=tf.nn.tanh,
-                                                 trainable=trainable)
-                return actor_out
+    def _build_actor(self, input_layer, reuse=None, custom_getter=None):
+        trainable = reuse is None
+        with tf.variable_scope('Actor', reuse=reuse, custom_getter=custom_getter):
+            fc = tf.layers.dense(input_layer, self.actor_units, name='l1',
+                                 activation=tf.nn.relu, trainable=trainable)
+            return tf.layers.dense(fc, self.action_dim, activation=tf.nn.tanh,
+                                   name='a', trainable=trainable)
 
-    def _build_critic(self, input_layer, actor_out, reuse=False, custom_getter=None):
-        trainable = not reuse
-        with tf.variable_scope('Critic'):
-            scope = 'Target' if not trainable else 'Network'
-            with tf.variable_scope(scope):
-                w1_s = tf.get_variable('w1_s', [self.state_dim, self.actor_units], trainable=trainable)
-                w1_a = tf.get_variable('w1_a', [self.action_dim, self.actor_units], trainable=trainable)
-                b1 = tf.get_variable('b1', [1, self.actor_units], trainable=trainable)
-                fc = tf.nn.elu(tf.matmul(input_layer, w1_s) + tf.matmul(actor_out, w1_a) + b1)
-                critic_out = slim.fully_connected(fc, 1, trainable=trainable, scope='out')
-                return critic_out
+    def _build_critic(self, input_layer, actor_out, reuse=None, custom_getter=None):
+        trainable = reuse is None
+        with tf.variable_scope('Critic', reuse=reuse, custom_getter=custom_getter):
+            w1_s = tf.get_variable('w1_s', [self.state_dim, self.actor_units], trainable=trainable)
+            w1_a = tf.get_variable('w1_a', [self.action_dim, self.actor_units], trainable=trainable)
+            b1 = tf.get_variable('b1', [1, self.actor_units], trainable=trainable)
+            fc = tf.nn.relu(tf.matmul(input_layer, w1_s) + tf.matmul(actor_out, w1_a) + b1)
+            return tf.layers.dense(fc, 1, trainable=trainable)
 
     def choose_action(self, sess, state, rnn_state, training: bool = True):
         feed_dict = {
