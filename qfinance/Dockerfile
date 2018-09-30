@@ -19,15 +19,15 @@ COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-COPY ./datasets/IBM_unadjusted.csv ./stock_data.csv
+COPY ./datasets/portfolio_data ./portfolio_data
 
 ENV ENV "DOCKER"
 ENV LC_ALL "C.UTF-8"
 ENV LANG "C.UTF-8"
 
 CMD ["python", "cli.py", \
-     "--data-file=stock_data.csv", \
+     "--data-dir=portfolio_data", \
      "--n-episodes=100", \
-     "--interval=H", \
-     "--fee=0.001" \
+     "--interval=30Min", \
+     "--fee=0." \
   ]
