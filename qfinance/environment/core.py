@@ -24,14 +24,13 @@ class Environment(object):
                  n_episodes: int,
                  memory_start_size: int):
         self._data = dataset
-        self._initial_funding = initial_funding
         self._initial_cash_pct = initial_cash_pct
         self._episode_start = 0
         self._current_state = 0
         self._cash = 0.0
         self._shares = []
-        self._init_portfolio()
 
+        self.initial_funding = initial_funding
         self.fee = fee
         self.validation_percent = validation_percent
         self.n_episodes = n_episodes
@@ -42,11 +41,13 @@ class Environment(object):
         self.episode_validation_length = int(total_length / (n_episodes + train_percent_ratio))
         self.episode_train_length = int(self.episode_validation_length * train_percent_ratio)
 
+        self._init_portfolio()
+
     def _init_portfolio(self):
         cash_pct = self._initial_cash_pct
         n_symbols = len(self._data.symbols)
         weights = np.append([cash_pct], [(1-cash_pct) / n_symbols] * n_symbols)
-        self._set_portfolio_from_weights(self._initial_funding, weights)
+        self._set_portfolio_from_weights(self.initial_funding, weights)
 
     def _set_portfolio_from_weights(self, portfolio_value: float, weights: np.array):
         intended_positions = portfolio_value * weights

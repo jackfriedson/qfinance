@@ -13,11 +13,12 @@ import tensorflow as tf
 
 from agent.experience_buffer import ExperienceBuffer
 from environment.core import Environment
-from model.qestimator import DDPG
+from model.ddpg import DDPG
 
 
 Transition = namedtuple('Transition', ['state', 'action', 'reward', 'next_state'])
 
+# TODO: Move to a config
 if os.environ.get('ENV') == 'DOCKER':
     experiments_dir = Path('/var/lib/tensorboard')
 else:
@@ -72,12 +73,12 @@ class Agent(object):
 
         saver = tf.train.Saver()
         with tf.Session() as sess:
-            q_estimator.summary_writer.add_graph(sess.graph)
             sess.run(tf.global_variables_initializer())
+            q_estimator.summary_writer.add_graph(sess.graph)
 
             click.echo('Initializing replay memory...')
             replay_memory = ExperienceBuffer(memory_max_size, random)
-            rnn_state = q_estimator.zero_rnn_state(1)
+            rnn_state = q_estimator.zero_rnn_state()
             for state in self.environment.replay_memories():
                 action, rnn_state = policy(sess, state, rnn_state)
                 reward = self.environment.step(action)
@@ -85,14 +86,13 @@ class Agent(object):
                 replay_memory.add(Transition(state, action, reward, next_state))
 
             for episode_i, (train_slice, validation_slice) in enumerate(self.environment.episodes()):
-                replay_memory.new_episode()
-                rnn_state = q_estimator.zero_rnn_state(1)
-
                 click.echo('\nEpisode {}'.format(episode_i))
+                replay_memory.new_episode()
+                rnn_state = q_estimator.zero_rnn_state()
+                training_stats = defaultdict(list)
                 train_bar = progressbar.ProgressBar(term_width=120,
                                                     max_value=self.environment.episode_train_length,
                                                     prefix='Training:')
-                training_stats = defaultdict(list)
 
                 for state in train_bar(train_slice):
                     # Make a prediction
@@ -109,15 +109,10 @@ class Agent(object):
                                        next_states_batch, trace_length)
 
                     training_stats['rewards'].append(reward)
-                    # training_stats['losses'].append(loss)
-
-                saver.save(sess, str(self.models_dir/'model.ckpt'))
 
                 # Evaluate the model
                 validation_stats = defaultdict(list)
-                # start_price = self.environment.last_price
-                rnn_state = q_estimator.zero_rnn_state(1)
-
+                rnn_state = q_estimator.zero_rnn_state()
                 val_bar = progressbar.ProgressBar(term_width=120,
                                                   max_value=self.environment.episode_validation_length,
                                                   prefix='Evaluating:')
@@ -128,7 +123,11 @@ class Agent(object):
                     state = self.environment.state
 
                     validation_stats['rewards'].append(reward)
-                    # validation_stats['losses'].append(loss)
+
+                saver.save(sess, str(self.models_dir/'model.ckpt'))
+
+                # TODO: Calculate sharpe ratio and outperformance of index
+                episode_return = (self.environment.portfolio_value / self.environment.initial_funding) - 1.
 
                 # Compute outperformance of market return
                 # market_return = (self.environment.last_price / start_price) - 1.
@@ -139,7 +138,7 @@ class Agent(object):
                 # outperformance = algorithm_return - market_return
                 # click.echo('Market return: {:.2f}%'.format(100 * market_return))
                 # click.echo('Outperformance: {:+.2f}%'.format(100 * outperformance))
-                #
+
                 # # Plot results and save to summary file
                 # buf = io.BytesIO()
                 # self.environment.plot(save_to=buf)
@@ -153,13 +152,9 @@ class Agent(object):
                 episode_summary.value.add(simple_value=sess.run(epsilon), tag='episode/train/epsilon')
                 episode_summary.value.add(simple_value=np.average(training_stats['rewards']),
                                           tag='episode/train/avg_reward')
-                # episode_summary.value.add(simple_value=np.average(training_stats['losses']),
-                #                           tag='episode/train/avg_loss')
                 episode_summary.value.add(simple_value=np.average(validation_stats['rewards']),
                                           tag='episode/validate/avg_reward')
-                # episode_summary.value.add(simple_value=np.average(validation_stats['losses']),
-                #                           tag='episode/validate/avg_loss')
-                # episode_summary.value.add(simple_value=outperformance, tag='episode/validate/outperformance')
+                episode_summary.value.add(simple_value=episode_return, tag='episode/validate/return')
                 q_estimator.summary_writer.add_summary(episode_summary, episode_i)
                 # q_estimator.summary_writer.add_summary(episode_chart, episode_i)
                 q_estimator.summary_writer.flush()

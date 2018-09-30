@@ -31,21 +31,15 @@ def learn(data_dir, interval, load_model, **kwargs):
         'epsilon_start': 1.,
 
         # Replay Memory
-        'batch_size': 32,
+        'batch_size': 64,
         'memory_max_size': 1e6,
-
-        # Regularization
-        # 'dropout_prob': 0.,
-        # 'rnn_dropout_prob': 0.,
 
         # Model params
         'gamma': 0.99,
         'tau': 0.01,
-        # 'fc_units': None,
-        'actor_units': 10,
+        'hidden_units': 30,
         'actor_learn_rate': 1e-4,
         'critic_learn_rate': 1e-3,
-        # 'rnn_layers': 2,
         'trace_length': 16,
     }
     data = CompositeDataset.from_csv_dir(Path(data_dir), interval=interval, indicators=indicators)
