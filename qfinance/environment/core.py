@@ -22,7 +22,7 @@ class Environment(object):
                  initial_cash_pct: float,
                  validation_percent: float,
                  n_episodes: int,
-                 replay_memory_start_size: int):
+                 memory_start_size: int):
         self._data = dataset
         self._initial_funding = initial_funding
         self._initial_cash_pct = initial_cash_pct
@@ -35,9 +35,9 @@ class Environment(object):
         self.fee = fee
         self.validation_percent = validation_percent
         self.n_episodes = n_episodes
-        self.replay_memory_start_size = replay_memory_start_size
+        self.memory_start_size = memory_start_size
 
-        total_length = len(self._data) - replay_memory_start_size
+        total_length = len(self._data) - memory_start_size
         train_percent_ratio = (1-self.validation_percent) / self.validation_percent
         self.episode_validation_length = int(total_length / (n_episodes + train_percent_ratio))
         self.episode_train_length = int(self.episode_validation_length * train_percent_ratio)
@@ -56,7 +56,7 @@ class Environment(object):
         self._cash += leftover.sum()
 
     def replay_memories(self) -> pd.DataFrame:
-        for _ in range(self.replay_memory_start_size):
+        for _ in range(self.memory_start_size):
             yield self.state
 
     def episodes(self) -> Iterable[Tuple[Iterable, Iterable]]:
@@ -144,7 +144,7 @@ class Environment(object):
 
     @property
     def action_space_dim(self) -> int:
-        return len(self._portfolio_weights)
+        return len(self._shares) + 1
 
     @property
     def total_train_steps(self) -> int:

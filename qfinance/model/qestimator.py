@@ -5,64 +5,103 @@ import tensorflow as tf
 import tensorflow.contrib.slim as slim
 
 
-class QEstimator(object):
+class DDPG(object):
 
     def __init__(self,
                  scope: str,
                  n_inputs: int,
                  n_outputs: int,
-                 learn_rate: float,
-                 renorm_decay: float,
-                 fc_units: int = None,
-                 summaries_dir: str = None,
-                 **kwargs):
+                 actor_units: int,
+                 actor_learn_rate: float,
+                 critic_learn_rate: float,
+                 tau: float,
+                 gamma: float,
+                 summaries_dir: str = None):
         self.scope = scope
+        self.state_dim = n_inputs
+        self.actor_units = actor_units
+        self.action_dim = n_outputs
 
-        with tf.variable_scope(scope):
-            self.inputs = tf.placeholder(shape=[None, n_inputs], dtype=tf.float32, name='inputs')
-            self.targets = tf.placeholder(shape=[None], dtype=tf.float32, name='targets')
-            self.actions = tf.placeholder(shape=[None], dtype=tf.int32, name='actions')
+        self.softmax_in = tf.placeholder(shape=[None], dtype=tf.float32, name='softmax_in')
+        self.softmax = tf.nn.softmax(self.softmax_in)
+
+        with tf.variable_scope(self.scope):
+            self.states = tf.placeholder(shape=[None, self.state_dim], dtype=tf.float32, name='states')
+            self.next_states = tf.placeholder(shape=[None, self.state_dim], dtype=tf.float32, name='next_states')
+            self.rewards = tf.placeholder(shape=[None, 1], dtype=tf.float32, name='rewards')
             self.phase = tf.placeholder(dtype=tf.bool, name='phase')
             self.trace_length = tf.placeholder(dtype=tf.int32, name='trace_length')
-            self.keep_prob = tf.placeholder(dtype=tf.float32, name='keep_per')
 
-            if fc_units is None:
-                fc_units = n_inputs
+            # if fc_units is None:
+            #     fc_units = self.state_dim
 
-            batch_size = tf.shape(self.inputs)[0]
+            batch_size = tf.shape(self.states)[0]
             rnn_batch_size = tf.reshape(batch_size // self.trace_length, shape=[])
 
-            # Normalize inputs
-            self.norm_layer = slim.batch_norm(self.inputs, renorm=True, renorm_decay=renorm_decay, is_training=self.phase)
-
             # Fully connected layer
-            self.fc_layer = slim.fully_connected(self.norm_layer, fc_units, activation_fn=tf.nn.elu, biases_initializer=None)
-            self.fc_flat = tf.reshape(self.fc_layer, shape=[rnn_batch_size, self.trace_length, fc_units])
+            # self.fc_layer = slim.fully_connected(batch_norm, fc_units, activation_fn=tf.nn.elu, biases_initializer=None)
+            # self.fc_flat = tf.reshape(self.fc_layer, shape=[rnn_batch_size, self.trace_length, fc_units])
 
-            # RNN layers
-            self.rnn_cell = tf.contrib.rnn.LSTMCell(num_units=fc_units, state_is_tuple=True, activation=tf.nn.softsign)
-            self.rnn_in = self.rnn_cell.zero_state(rnn_batch_size, dtype=tf.float32)
-            self.rnn, self.rnn_state = tf.nn.dynamic_rnn(self.rnn_cell, self.fc_flat, dtype=tf.float32, initial_state=self.rnn_in)
-            self.rnn = tf.reshape(self.rnn, shape=tf.shape(self.fc_layer))
+            batch_norm = tf.layers.batch_normalization(self.states,
+                                                       name='batch_norm',
+                                                       renorm=True,
+                                                       training=self.phase)
+            flat = tf.reshape(batch_norm, shape=[rnn_batch_size, self.trace_length, self.state_dim])
 
-            # Output layer
-            self.dropout = slim.dropout(self.rnn, keep_prob=self.keep_prob, is_training=self.phase)
-            self.output_layer = slim.fully_connected(self.dropout, n_outputs, activation_fn=None, biases_initializer=None)
+            rnn_cell = tf.nn.rnn_cell.LSTMCell(num_units=self.state_dim,
+                                               state_is_tuple=True,
+                                               activation=tf.nn.softsign,
+                                               name='lstm_cell')
+            self.rnn_in = rnn_cell.zero_state(rnn_batch_size, dtype=tf.float32)
+            rnn, self.rnn_state = tf.nn.dynamic_rnn(rnn_cell, flat, dtype=tf.float32,
+                                                    initial_state=self.rnn_in, scope='rnn')
+            rnn = tf.reshape(rnn, shape=tf.shape(batch_norm), name='rnn_out')
 
-            gather_indices = tf.range(batch_size) * tf.shape(self.output_layer)[1] + self.actions
-            self.predictions = tf.gather(tf.reshape(self.output_layer, [-1]), gather_indices)
+            a = self._build_actor(rnn)
+            self.actor_out = tf.nn.softmax(a)
+            q = self._build_critic(rnn, a)
+            actor_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='{}/Actor'.format(self.scope))
+            critic_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='{}/Critic'.format(self.scope))
 
-            self.loss = tf.losses.mean_squared_error(self.targets, self.predictions)
-            self.optimizer = tf.train.AdamOptimizer(learn_rate)
+            ema = tf.train.ExponentialMovingAverage(decay=1-tau)
+            def ema_getter(getter, name, *args, **kwargs):
+                return ema.average(getter(name, *args, **kwargs))
 
-            update_ops = tf.get_collection(tf.GraphKeys.UPDATE_OPS)
-            with tf.control_dependencies(update_ops):
-                self.train_op = self.optimizer.minimize(self.loss, global_step=tf.train.get_global_step())
+            # Target
+            next_batch_norm = tf.layers.batch_normalization(self.next_states,
+                                                            name='batch_norm',
+                                                            reuse=True,
+                                                            trainable=False,
+                                                            training=self.phase)
+            next_flat = tf.reshape(next_batch_norm, shape=[rnn_batch_size, self.trace_length, self.state_dim])
+            next_rnn_cell = tf.nn.rnn_cell.LSTMCell(num_units=self.state_dim,
+                                                    state_is_tuple=True,
+                                                    activation=tf.nn.softsign,
+                                                    reuse=True,
+                                                    name='lstm_cell')
+            self.next_rnn_in = next_rnn_cell.zero_state(rnn_batch_size, dtype=tf.float32)
+            next_rnn, next_rnn_state = tf.nn.dynamic_rnn(next_rnn_cell, next_flat, dtype=tf.float32,
+                                                         initial_state=self.next_rnn_in, scope='rnn')
+            next_rnn = tf.reshape(rnn, shape=tf.shape(next_batch_norm), name='rnn_out')
+
+            target_update = [ema.apply(actor_params), ema.apply(critic_params)]
+            a_ = self._build_actor(next_rnn, reuse=True, custom_getter=ema_getter)
+            q_ = self._build_critic(next_rnn, a_, reuse=True, custom_getter=ema_getter)
+
+            with tf.control_dependencies(tf.get_collection(tf.GraphKeys.UPDATE_OPS)):
+                actor_loss = -tf.reduce_mean(q)
+                actor_optimizer = tf.train.AdamOptimizer(actor_learn_rate)
+                self.train_actor = actor_optimizer.minimize(actor_loss, var_list=actor_params)
+
+                with tf.control_dependencies(target_update):
+                    q_target = self.rewards + gamma * q_
+                    td_error = tf.losses.mean_squared_error(labels=q_target, predictions=q)
+                    critic_optimizer = tf.train.AdamOptimizer(critic_learn_rate)
+                    self.train_critic = critic_optimizer.minimize(td_error, var_list=critic_params)
 
             summaries = [
-                tf.summary.scalar('loss', self.loss),
-                tf.summary.scalar('max_q_value', tf.reduce_max(self.output_layer)),
-                tf.summary.histogram('q_values_hist', self.output_layer),
+                tf.summary.scalar('actor_loss', actor_loss),
+                tf.summary.scalar('td_error', td_error)
             ]
             self.summaries = tf.summary.merge(summaries)
 
@@ -73,59 +112,71 @@ class QEstimator(object):
                 summary_dir.mkdir(exist_ok=True)
                 self.summary_writer = tf.summary.FileWriter(str(summary_dir))
 
-    def predict(self, sess, state, trace_length, rnn_state, keep_prob: float = 1.0, training: bool = True):
+    def _build_actor(self, input_layer, reuse=False, custom_getter=None):
+        trainable = not reuse
+        with tf.variable_scope('Actor'):
+            scope = 'Target' if not trainable else 'Network'
+            with tf.variable_scope(scope):
+                fc = slim.fully_connected(input_layer, self.actor_units, activation_fn=tf.nn.relu,
+                                          trainable=trainable)
+                actor_out = slim.fully_connected(fc, self.action_dim, activation_fn=tf.nn.tanh,
+                                                 trainable=trainable)
+                return actor_out
+
+    def _build_critic(self, input_layer, actor_out, reuse=False, custom_getter=None):
+        trainable = not reuse
+        with tf.variable_scope('Critic'):
+            scope = 'Target' if not trainable else 'Network'
+            with tf.variable_scope(scope):
+                w1_s = tf.get_variable('w1_s', [self.state_dim, self.actor_units], trainable=trainable)
+                w1_a = tf.get_variable('w1_a', [self.action_dim, self.actor_units], trainable=trainable)
+                b1 = tf.get_variable('b1', [1, self.actor_units], trainable=trainable)
+                fc = tf.nn.elu(tf.matmul(input_layer, w1_s) + tf.matmul(actor_out, w1_a) + b1)
+                critic_out = slim.fully_connected(fc, 1, trainable=trainable, scope='out')
+                return critic_out
+
+    def choose_action(self, sess, state, rnn_state, training: bool = True):
         feed_dict = {
-            self.inputs: state,
+            self.states: state,
             self.phase: training,
-            self.trace_length: trace_length,
-            self.rnn_in: rnn_state,
-            self.keep_prob: keep_prob
-        }
-        return sess.run([self.output_layer, self.rnn_state], feed_dict)
-
-    def update(self, sess, state, action, target, trace_length, rnn_state):
-        feed_dict = {
-            self.inputs: state,
-            self.targets: target,
-            self.actions: action,
-            self.phase: True,
-            self.trace_length: trace_length,
-            self.rnn_in: rnn_state,
-            self.keep_prob: 1.,
-        }
-
-        summaries, global_step, _, loss = sess.run([self.summaries, tf.train.get_global_step(),
-                                                    self.train_op, self.loss], feed_dict)
-
-        if self.summary_writer:
-            self.summary_writer.add_summary(summaries, global_step)
-
-        return loss
-
-    def compute_loss(self, sess, state, action, target, rnn_state):
-        feed_dict = {
-            self.inputs: np.array([state]),
-            self.targets: np.array([target]),
-            self.actions: np.array([action]),
-            self.phase: False,
             self.trace_length: 1,
             self.rnn_in: rnn_state,
-            self.keep_prob: 1.,
         }
-        return sess.run(self.loss, feed_dict)
+        return sess.run([self.actor_out, self.rnn_state], feed_dict)
 
+    def update(self, sess, state, action, reward, next_state, trace_length):
+        batch_size = len(state) // trace_length
+        feed_dict = {
+            self.states: state,
+            self.actor_out: action,
+            self.rewards: np.expand_dims(reward, 1),
+            self.next_states: next_state,
+            self.phase: True,
+            self.trace_length: trace_length,
+            self.rnn_in: self.zero_rnn_state(batch_size),
+            self.next_rnn_in: self.zero_rnn_state(batch_size),
+        }
+        sess.run(self.train_actor, feed_dict)
+        sess.run(self.train_critic, feed_dict)
 
-class ModelParametersCopier():
-    def __init__(self, estimator_from, estimator_to):
-        from_params = [t for t in tf.trainable_variables() if t.name.startswith(estimator_from.scope)]
-        from_params = sorted(from_params, key=lambda v: v.name)
-        to_params = [t for t in tf.trainable_variables() if t.name.startswith(estimator_to.scope)]
-        to_params = sorted(to_params, key=lambda v: v.name)
+        if self.summary_writer:
+            summary_ops = [self.summaries, tf.train.get_global_step()]
+            summaries, global_step = sess.run(summary_ops, feed_dict)
+            self.summary_writer.add_summary(summaries, global_step)
 
-        self.update_ops = []
-        for from_v, to_v in zip(from_params, to_params):
-            op = to_v.assign(from_v)
-            self.update_ops.append(op)
+    def apply_softmax(self, sess, input):
+        return sess.run(self.softmax, {self.softmax_in: input})
 
-    def make(self, sess):
-        sess.run(self.update_ops)
+    def zero_rnn_state(self, batch_size: int):
+        return (np.zeros([batch_size, self.state_dim]), np.zeros([batch_size, self.state_dim]))
+
+    # def compute_loss(self, sess, state, action, target, rnn_state):
+    #     feed_dict = {
+    #         self.states: np.array([state]),
+    #         self.rewards: np.array([target]),
+    #         self.actor_out: np.array([action]),
+    #         self.phase: False,
+    #         self.trace_length: 1,
+    #         self.rnn_in: rnn_state,
+    #     }
+    #     return sess.run(self.loss, feed_dict)
