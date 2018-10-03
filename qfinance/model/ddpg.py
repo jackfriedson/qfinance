@@ -82,8 +82,6 @@ class DDPG(object):
                                                    training=self.phase)
         flat = tf.reshape(batch_norm, shape=[rnn_batch_size, self.trace_length, self.state_dim])
 
-        
-
         # RNN layers
         rnn_cell = tf.nn.rnn_cell.LSTMCell(num_units=self.state_dim,
                                            state_is_tuple=True,

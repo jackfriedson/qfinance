@@ -118,6 +118,7 @@ class Agent(object):
                                                   prefix='Evaluating:')
 
                 for state in val_bar(validation_slice):
+                    # TODO: reset portfolio here so training doesn't affect starting position
                     action, rnn_state = policy(sess, state, rnn_state, is_training=False)
                     reward = self.environment.step(action)
                     state = self.environment.state
@@ -139,14 +140,6 @@ class Agent(object):
                 # click.echo('Market return: {:.2f}%'.format(100 * market_return))
                 # click.echo('Outperformance: {:+.2f}%'.format(100 * outperformance))
 
-                # # Plot results and save to summary file
-                # buf = io.BytesIO()
-                # self.environment.plot(save_to=buf)
-                # buf.seek(0)
-                # image = tf.image.decode_png(buf.getvalue(), channels=4)
-                # image = tf.expand_dims(image, 0)
-                # episode_chart = tf.summary.image('episode_{}'.format(episode_i), image, max_outputs=1).eval()
-
                 # # Add Tensorboard summaries
                 episode_summary = tf.Summary()
                 episode_summary.value.add(simple_value=sess.run(epsilon), tag='episode/train/epsilon')
@@ -156,8 +149,16 @@ class Agent(object):
                                           tag='episode/validate/avg_reward')
                 episode_summary.value.add(simple_value=episode_return, tag='episode/validate/return')
                 q_estimator.summary_writer.add_summary(episode_summary, episode_i)
-                # q_estimator.summary_writer.add_summary(episode_chart, episode_i)
+                q_estimator.summary_writer.add_summary(self._episode_chart_summary(episode_i), episode_i)
                 q_estimator.summary_writer.flush()
+
+    def _episode_chart_summary(self, episode_num: int):
+        buf = io.BytesIO()
+        self.environment.plot(save_to=buf)
+        buf.seek(0)
+        image = tf.image.decode_png(buf.getvalue(), channels=4)
+        image = tf.expand_dims(image, 0)
+        return tf.summary.image('episode_{}'.format(episode_num), image, max_outputs=1).eval()
 
     @staticmethod
     def _make_policy(estimator, epsilon, random):

@@ -30,6 +30,9 @@ class Environment(object):
         self._cash = 0.0
         self._shares = []
 
+        self._portfolio_values = pd.Series(index=self._data.index, name='QFIN')
+        self._portfolio_values.iloc[0] = initial_funding
+
         self.initial_funding = initial_funding
         self.fee = fee
         self.validation_percent = validation_percent
@@ -69,6 +72,7 @@ class Environment(object):
                    (self.state for _ in range(self.episode_validation_length)))
 
     def step(self, new_weights: np.array) -> float:
+        np.testing.assert_almost_equal(new_weights.sum(), 1.0, 5)
         old_shares = self._shares
         old_value = self.portfolio_value
         self._set_portfolio_from_weights(self.portfolio_value, new_weights)
@@ -82,50 +86,32 @@ class Environment(object):
 
         self._next()
         # TODO: add risk penalty (and maybe market impact penalty)
+        self._portfolio_values.iloc[self._current_state] = self.portfolio_value
         return self.portfolio_value - old_value
 
     def plot(self,
              data_column: str = 'close',
-             plot_indicators: bool = False,
-             plot_orders: bool = True,
              save_to: Union[str, io.BufferedIOBase] = None) -> None:
-        pass
-        # fig = plt.figure(figsize=(60, 30))
-        # ratios = [3] if not plot_indicators else [3] + ([1] * len(self._indicators))
-        # n_subplots = 1 if not plot_indicators else 1 + len(self._indicators)
-        # gs = gridspec.GridSpec(n_subplots, 1, height_ratios=ratios)
-        # plot_data = self._data[self._episode_start:self._current_state]
-        #
-        # # Plot long and short positions
-        # ax0 = fig.add_subplot(gs[0])
-        # ax0.set_title('Price ({})'.format(data_column))
-        # ax0.plot(plot_data.index, plot_data[data_column], 'black')
-        #
-        # longs = plot_data[data_column][self._positions == 'long']
-        # longs = longs.resample(plot_data.index.freq).fillna(None)
-        # longs.plot(ax=ax0, style='g')
-        #
-        # shorts = plot_data[data_column][self._positions == 'short']
-        # shorts = shorts.resample(plot_data.index.freq).fillna(None)
-        # shorts.plot(ax=ax0, style='r')
-        #
-        # if plot_orders:
-        #     orders = self._orders.dropna()
-        #     ax0.plot(orders.index, orders['buy'], color='k', marker='^', linestyle='None')
-        #     ax0.plot(orders.index, orders['sell'], color='k', marker='v', linestyle='None')
-        #
-        # # if plot_indicators:
-        # #     for i, indicator in enumerate(self._indicators, start=1):
-        # #         ax_ind = fig.add_subplot(gs[i])
-        # #         indicator.plot(ax_ind)
-        #
-        # fig.autofmt_xdate()
-        # plt.tight_layout()
-        #
-        # if save_to:
-        #     fig.savefig(save_to, format='png')
-        # else:
-        #     plt.show()
+        fig = plt.figure(figsize=(60, 30))
+        gs = gridspec.GridSpec(1, 1, height_ratios=[3])
+        market_data = self._data[self._episode_start:self._current_state][data_column]
+        portfolio_data = self._portfolio_values.iloc[self._episode_start:self._current_state]
+        price_data = market_data.join(portfolio_data)
+        scaled_data = price_data / price_data.iloc[0]
+
+        ax0 = fig.add_subplot(gs[0])
+        ax0.set_title('Price ({})'.format(data_column))
+        for column in scaled_data.columns:
+            ax0.plot(scaled_data.index, scaled_data[column], label=column)
+        ax0.legend()
+
+        fig.autofmt_xdate()
+        plt.tight_layout()
+
+        if save_to:
+            fig.savefig(save_to, format='png')
+        else:
+            plt.show()
 
     @property
     def state(self) -> np.ndarray:
@@ -133,7 +119,10 @@ class Environment(object):
 
     @property
     def portfolio_value(self) -> float:
-        return self._cash + self.positions.sum()
+        if np.isnan(self._portfolio_values.iloc[self._current_state]):
+            current_value = self._cash + self.positions.sum()
+            self._portfolio_values.iloc[self._current_state] = current_value
+        return self._portfolio_values.iloc[self._current_state]
 
     @property
     def positions(self) -> np.array:

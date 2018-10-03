@@ -39,7 +39,7 @@ def learn(data_dir, interval, load_model, **kwargs):
         'tau': 0.01,
         'hidden_units': 30,
         'actor_learn_rate': 1e-4,
-        'critic_learn_rate': 1e-3,
+        'critic_learn_rate': 1e-2,
         'trace_length': 16,
     }
     data = CompositeDataset.from_csv_dir(Path(data_dir),
