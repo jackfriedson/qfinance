@@ -8,7 +8,6 @@ from talib.abstract import Function
 
 
 COLUMN_DTYPES = defaultdict(lambda x: np.float64)
-COLUMN_DTYPES['volume'] = np.int32
 DEFAULT_FREQ = '1Min'
 DEFAULT_TIMEZONE = 'America/New_York'
 
