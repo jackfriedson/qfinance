@@ -13,7 +13,7 @@ from environment import CompositeDataset, Environment
 @click.option('--n-episodes', type=int, default=10)
 @click.option('--memory-start-size', type=int, default=10000)
 @click.option('--fee', type=float, default=1.00)
-@click.option('--interval', type=str, default='1Min')
+@click.option('--interval', type=str, default=None)
 @click.option('--initial-funding', type=float, default=10000.)
 @click.option('--initial-cash-pct', type=float, default=0.2)
 @click.option('--load-model', type=str, default=None)

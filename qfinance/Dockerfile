@@ -28,6 +28,6 @@ ENV LANG "C.UTF-8"
 CMD ["python", "cli.py", \
      "--data-dir=portfolio_data", \
      "--n-episodes=100", \
-     "--interval=30Min", \
+     # "--interval=30Min", \
      "--fee=0." \
   ]
