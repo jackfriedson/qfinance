@@ -21,14 +21,14 @@ class Dataset(object):
     def __init__(self,
                  name: str,
                  data: pd.DataFrame,
-                 interval: str = None,
+                 interval: str = DEFAULT_FREQ,
                  indicators: List[str] = None,
                  drop_columns = None):
         # Init OHLC data
         self.name = name
         self._data = data.tz_localize(DEFAULT_TIMEZONE, ambiguous='infer').tz_convert('UTC')
-        if interval:
-            self.upsample(DEFAULT_FREQ)
+        self.upsample(DEFAULT_FREQ)
+        if interval != DEFAULT_FREQ:
             self.downsample(interval)
         self._data = self._data.astype(COLUMN_DTYPES)
 
