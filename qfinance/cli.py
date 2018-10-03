@@ -19,10 +19,14 @@ from environment import CompositeDataset, Environment
 @click.option('--load-model', type=str, default=None)
 def learn(data_dir, interval, load_model, **kwargs):
     indicators = [
-        # 'macd',
+        'macd',
         'rsi',
         'mom',
-        # 'stoch'
+        'obv'
+    ]
+    drop_columns = [
+        'open',
+        'low'
     ]
     hyperparams = {
         # Exploration
@@ -45,7 +49,7 @@ def learn(data_dir, interval, load_model, **kwargs):
     data = CompositeDataset.from_csv_dir(Path(data_dir),
                                          interval=interval,
                                          indicators=indicators,
-                                         drop_columns=['open', 'low'])
+                                         drop_columns=drop_columns)
     environment = Environment(data, **kwargs)
     agent = Agent(environment, random_seed=999999)
     agent.train(load_model=load_model, **hyperparams)
