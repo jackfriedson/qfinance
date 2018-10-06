@@ -29,7 +29,7 @@ class Environment(object):
         self._state_idx = 0
         self._cash = 0.0
         self._shares = []
-        self._portfolio_values = pd.Series(index=self._data.index, name='QFIN')
+        self._episode_values = pd.Series(index=self._data.index, name='QFIN')
         self.initial_funding = initial_funding
         self.fee = fee
         self.validation_percent = validation_percent
@@ -39,10 +39,10 @@ class Environment(object):
         train_percent_ratio = (1-self.validation_percent) / self.validation_percent
         self.episode_validation_length = int(total_length / (n_episodes + train_percent_ratio))
         self.episode_train_length = int(self.episode_validation_length * train_percent_ratio)
-        self._reset_portfolio()
 
-    def _reset_portfolio(self):
-        self._portfolio_values.iloc[self._state_idx] = self.initial_funding
+        self.reset_portfolio()
+
+    def reset_portfolio(self):
         cash_pct = self._initial_cash_pct
         n_symbols = len(self._data.symbols)
         weights = np.append([cash_pct], [(1-cash_pct) / n_symbols] * n_symbols)
@@ -55,6 +55,7 @@ class Environment(object):
         leftover = intended_positions[1:] - self.positions
         self._cash += leftover.sum()
 
+        self._episode_values.iloc[self._state_idx] = portfolio_value
         current_value = self._cash + self.positions.sum()
         np.testing.assert_almost_equal(current_value, portfolio_value, 2)
 
@@ -66,24 +67,15 @@ class Environment(object):
         for episode_i in range(self.n_episodes):
             self._episode_start = episode_i * self.episode_validation_length
             self._state_idx = self._episode_start
-            self._reset_portfolio()
-
-            def train_states():
-                for _ in range(self.episode_train_length):
-                    yield self.state
-
-            def validate_states():
-                self._reset_portfolio()
-                for _ in range(self.episode_validation_length):
-                    yield self.state
-
-            yield train_states(), validate_states()
+            self._episode_values = pd.Series(index=self._data.index, name='QFIN')
+            yield ((self.state for _ in range(self.episode_train_length)),
+                   (self.state for _ in range(self.episode_validation_length)))
 
     def step(self, new_weights: np.array) -> float:
         np.testing.assert_almost_equal(new_weights.sum(), 1.0, 5)
         old_shares = self._shares
         old_value = self.portfolio_value
-        self._set_portfolio_from_weights(self.portfolio_value, new_weights)
+        self._set_portfolio_from_weights(old_value, new_weights)
         new_shares = self._shares
 
         n_trades = (old_shares != new_shares).sum()
@@ -94,7 +86,9 @@ class Environment(object):
 
         self._next()
         # TODO: add risk penalty (and maybe market impact penalty)
-        return self.portfolio_value - old_value
+        new_value = self.portfolio_value
+        self._episode_values.iloc[self._state_idx] = new_value
+        return new_value - old_value
 
     def plot(self,
              data_column: str = 'close',
@@ -102,10 +96,12 @@ class Environment(object):
         fig = plt.figure(figsize=(60, 30))
         gs = gridspec.GridSpec(1, 1, height_ratios=[3])
         market_data = self._data[self._episode_start:self._state_idx][data_column]
-        portfolio_data = self._portfolio_values.iloc[self._episode_start:self._state_idx]
+        portfolio_data = self._episode_values.iloc[self._episode_start:self._state_idx]
+        import ipdb; ipdb.set_trace()
         price_data = market_data.join(portfolio_data)
         scaled_data = price_data / price_data.iloc[0]
-        scaled_data *= self._portfolio_values.iloc[self._episode_start]
+        assert self._episode_values.iloc[self._episode_start] == self.initial_funding, stored_val
+        scaled_data *= self.initial_funding
         dt_index = scaled_data.index
         scaled_data.reset_index(drop=True, inplace=True)
 
@@ -132,10 +128,7 @@ class Environment(object):
 
     @property
     def portfolio_value(self) -> float:
-        if np.isnan(self._portfolio_values.iloc[self._state_idx]):
-            current_value = self._cash + self.positions.sum()
-            self._portfolio_values.iloc[self._state_idx] = current_value
-        return self._portfolio_values.iloc[self._state_idx]
+        return self._cash + self.positions.sum()
 
     @property
     def positions(self) -> np.array:
@@ -150,8 +143,8 @@ class Environment(object):
         return len(self._shares) + 1
 
     @property
-    def total_train_steps(self) -> int:
-        return self.episode_train_length * self.n_episodes
+    def total_steps(self) -> int:
+        return (self.episode_train_length + self.episode_validation_length) * self.n_episodes
 
     @property
     def current_timestamp(self):

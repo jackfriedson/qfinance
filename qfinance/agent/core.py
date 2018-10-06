@@ -66,7 +66,7 @@ class Agent(object):
                            **kwargs)
 
         epsilon = tf.train.polynomial_decay(epsilon_start, global_step,
-                                            self.environment.total_train_steps,
+                                            self.environment.total_steps,
                                             end_learning_rate=epsilon_end,
                                             power=epsilon_decay)
         policy = self._make_policy(q_estimator, epsilon, random)
@@ -86,7 +86,7 @@ class Agent(object):
                 replay_memory.add(Transition(state, action, reward, next_state))
 
             cumulative_return = 1.
-            for episode_i, (train_slice, validation_slice) in enumerate(self.environment.episodes()):
+            for episode_i, (train_states, val_states) in enumerate(self.environment.episodes()):
                 click.echo('\nEpisode {}'.format(episode_i))
                 replay_memory.new_episode()
                 rnn_state = q_estimator.zero_rnn_state()
@@ -95,20 +95,19 @@ class Agent(object):
                                                     max_value=self.environment.episode_train_length,
                                                     prefix='Training:')
 
-                for state in train_bar(train_slice):
+                self.environment.reset_portfolio()
+                for state in train_bar(train_states):
                     # Make a prediction
                     action, rnn_state = policy(sess, state, rnn_state)
                     reward = self.environment.step(action)
                     next_state = self.environment.state
 
+                    # Add new example and train the network
                     replay_memory.add(Transition(state, action, reward, next_state))
                     samples = replay_memory.sample(batch_size, trace_length)
                     states_batch, action_batch, reward_batch, next_states_batch = map(np.array, zip(*samples))
-
-                    # Train the network
                     q_estimator.update(sess, states_batch, action_batch, reward_batch,
                                        next_states_batch, trace_length)
-
                     training_stats['rewards'].append(reward)
 
                 # Evaluate the model
@@ -118,12 +117,11 @@ class Agent(object):
                                                   max_value=self.environment.episode_validation_length,
                                                   prefix='Evaluating:')
 
-                for state in val_bar(validation_slice):
-                    # TODO: reset portfolio here so training doesn't affect starting position
+                self.environment.reset_portfolio()
+                for state in val_bar(val_states):
                     action, rnn_state = policy(sess, state, rnn_state, is_training=False)
                     reward = self.environment.step(action)
                     state = self.environment.state
-
                     validation_stats['rewards'].append(reward)
 
                 saver.save(sess, str(self.models_dir/'model.ckpt'))
@@ -149,8 +147,8 @@ class Agent(object):
                                           tag='episode/train/avg_reward')
                 episode_summary.value.add(simple_value=np.average(validation_stats['rewards']),
                                           tag='episode/validate/avg_reward')
-                episode_summary.value.add(simple_value=episode_return, tag='episode/episode_return')
-                episode_summary.value.add(simple_value=cumulative_return, tag='episode/cumulative_return')
+                episode_summary.value.add(simple_value=episode_return, tag='episode/validate/episode_return')
+                episode_summary.value.add(simple_value=cumulative_return, tag='episode/validate/cumulative_return')
                 q_estimator.summary_writer.add_summary(episode_summary, episode_i)
                 q_estimator.summary_writer.add_summary(self._episode_chart_summary(episode_i), episode_i)
                 q_estimator.summary_writer.flush()
