@@ -29,24 +29,20 @@ class Environment(object):
         self._current_state = 0
         self._cash = 0.0
         self._shares = []
-
         self._portfolio_values = pd.Series(index=self._data.index, name='QFIN')
-        self._portfolio_values.iloc[0] = initial_funding
-
         self.initial_funding = initial_funding
         self.fee = fee
         self.validation_percent = validation_percent
         self.n_episodes = n_episodes
         self.memory_start_size = memory_start_size
-
         total_length = len(self._data) - memory_start_size
         train_percent_ratio = (1-self.validation_percent) / self.validation_percent
         self.episode_validation_length = int(total_length / (n_episodes + train_percent_ratio))
         self.episode_train_length = int(self.episode_validation_length * train_percent_ratio)
-
         self._init_portfolio()
 
     def _init_portfolio(self):
+        self._portfolio_values.iloc[self._current_state] = self.initial_funding
         cash_pct = self._initial_cash_pct
         n_symbols = len(self._data.symbols)
         weights = np.append([cash_pct], [(1-cash_pct) / n_symbols] * n_symbols)
@@ -98,7 +94,7 @@ class Environment(object):
         portfolio_data = self._portfolio_values.iloc[self._episode_start:self._current_state]
         price_data = market_data.join(portfolio_data)
         scaled_data = price_data / price_data.iloc[0]
-        scaled_data *= self.initial_funding
+        scaled_data *= self._portfolio_values.iloc[self._episode_start]
         dt_index = scaled_data.index
         scaled_data.reset_index(drop=True, inplace=True)
 
