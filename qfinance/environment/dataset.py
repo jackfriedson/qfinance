@@ -1,4 +1,5 @@
 from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
 from typing import List
 
@@ -26,7 +27,7 @@ class Dataset(object):
         # Init OHLC data
         self.name = name
         self._data = data.tz_localize(DEFAULT_TIMEZONE, ambiguous='infer').tz_convert('UTC')
-        self.upsample(DEFAULT_FREQ)
+        self.upsample('1Min')
         if interval != DEFAULT_FREQ:
             self.downsample(interval)
         self._data = self._data.astype(COLUMN_DTYPES)
@@ -78,11 +79,24 @@ class Dataset(object):
         self._data = full_data.dropna()
 
     def upsample(self, freq: str):
-        self._data = self._data.resample(freq).fillna(None)
+        data_start = str(self._data.index[0].date())
+        data_end = str(self._data.index[-1].date())
+        date_range = pd.date_range(start=data_start, end=data_end, freq='B')
+        date_range = pd.Series(date_range)
+        time_range = pd.date_range(start='13:30:00', end='20:00:00', freq=freq)
+        time_range = pd.Series(time_range.time)
+        index = date_range.apply(
+            lambda d: time_range.apply(
+                lambda t: datetime.combine(d, t)
+            )
+        ).unstack().sort_values().reset_index(drop=True)
+        index = pd.DatetimeIndex(index).tz_localize('UTC')
+        self._data = self._data.reindex(index=index, columns=self._data.columns)
         self._data['volume'] = self._data['volume'].fillna(value=0)
         self._data['close'] = self._data['close'].fillna(method='ffill')
         for column in ['open', 'high', 'low']:
             self._data[column] = self._data[column].fillna(value=self._data['close'])
+        self._data.dropna(inplace=True)
 
     def downsample(self, freq: str):
         self._data = self._data.resample(freq).agg({
@@ -92,6 +106,7 @@ class Dataset(object):
             'close': 'last',
             'volume': 'sum'
         })
+        self._data.dropna(inplace=True)
 
     @property
     def index(self):
