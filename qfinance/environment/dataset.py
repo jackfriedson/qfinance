@@ -11,6 +11,8 @@ from talib.abstract import Function
 COLUMN_DTYPES = defaultdict(lambda x: np.float64)
 DEFAULT_FREQ = '1Min'
 DEFAULT_TIMEZONE = 'America/New_York'
+TRADE_DAY_START_UTC = '13:30:00'
+TRADE_DAY_END_UTC = '20:00:00'
 
 
 class Dataset(object):
@@ -27,7 +29,7 @@ class Dataset(object):
         # Init OHLC data
         self.name = name
         self._data = data.tz_localize(DEFAULT_TIMEZONE, ambiguous='infer').tz_convert('UTC')
-        self.upsample('1Min')
+        self.upsample(DEFAULT_FREQ)
         if interval != DEFAULT_FREQ:
             self.downsample(interval)
         self._data = self._data.astype(COLUMN_DTYPES)
@@ -69,13 +71,11 @@ class Dataset(object):
 
     def _apply_indicators(self):
         full_data = self._data
-
         for name, func in self._indicators.items():
             indicator_data = func(self._data)
             if isinstance(indicator_data, pd.Series):
                 indicator_data = indicator_data.to_frame(name)
             full_data = full_data.join(indicator_data)
-
         self._data = full_data.dropna()
 
     def upsample(self, freq: str):
@@ -83,7 +83,7 @@ class Dataset(object):
         data_end = str(self._data.index[-1].date())
         date_range = pd.date_range(start=data_start, end=data_end, freq='B')
         date_range = pd.Series(date_range)
-        time_range = pd.date_range(start='13:30:00', end='20:00:00', freq=freq)
+        time_range = pd.date_range(start=TRADE_DAY_START_UTC, end=TRADE_DAY_END_UTC, freq=freq)
         time_range = pd.Series(time_range.time)
         index = date_range.apply(
             lambda d: time_range.apply(

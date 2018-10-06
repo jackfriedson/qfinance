@@ -98,9 +98,15 @@ class Environment(object):
         portfolio_data = self._portfolio_values.iloc[self._episode_start:self._current_state]
         price_data = market_data.join(portfolio_data)
         scaled_data = price_data / price_data.iloc[0]
+        scaled_data *= self.initial_funding
+        dt_index = scaled_data.index
+        scaled_data.reset_index(drop=True, inplace=True)
 
         ax0 = fig.add_subplot(gs[0])
         ax0.set_title('Price ({})'.format(data_column))
+        ax0.set_xlim(left=scaled_data.index[0], right=scaled_data.index[-1])
+        ticks = ax0.get_xticks()
+        ax0.set_xticklabels([dt_index[int(i)].date() for i in ticks[:-1]])
         for column in scaled_data.columns:
             ax0.plot(scaled_data.index, scaled_data[column], label=column)
         ax0.legend()
