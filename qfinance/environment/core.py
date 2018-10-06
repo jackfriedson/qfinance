@@ -26,7 +26,7 @@ class Environment(object):
         self._data = dataset
         self._initial_cash_pct = initial_cash_pct
         self._episode_start = 0
-        self._current_state = 0
+        self._state_idx = 0
         self._cash = 0.0
         self._shares = []
         self._portfolio_values = pd.Series(index=self._data.index, name='QFIN')
@@ -42,7 +42,7 @@ class Environment(object):
         self._init_portfolio()
 
     def _init_portfolio(self):
-        self._portfolio_values.iloc[self._current_state] = self.initial_funding
+        self._portfolio_values.iloc[self._state_idx] = self.initial_funding
         cash_pct = self._initial_cash_pct
         n_symbols = len(self._data.symbols)
         weights = np.append([cash_pct], [(1-cash_pct) / n_symbols] * n_symbols)
@@ -55,6 +55,9 @@ class Environment(object):
         leftover = intended_positions[1:] - self.positions
         self._cash += leftover.sum()
 
+        current_value = self._cash + self.positions.sum()
+        np.testing.assert_almost_equal(current_value, portfolio_value, 2)
+
     def replay_memories(self) -> pd.DataFrame:
         for _ in range(self.memory_start_size):
             yield self.state
@@ -62,8 +65,8 @@ class Environment(object):
     def episodes(self) -> Iterable[Tuple[Iterable, Iterable]]:
         for episode_i in range(self.n_episodes):
             self._episode_start = episode_i * self.episode_validation_length
+            self._state_idx = self._episode_start
             self._init_portfolio()
-            self._current_state = self._episode_start
             yield ((self.state for _ in range(self.episode_train_length)),
                    (self.state for _ in range(self.episode_validation_length)))
 
@@ -82,7 +85,6 @@ class Environment(object):
 
         self._next()
         # TODO: add risk penalty (and maybe market impact penalty)
-        self._portfolio_values.iloc[self._current_state] = self.portfolio_value
         return self.portfolio_value - old_value
 
     def plot(self,
@@ -90,8 +92,8 @@ class Environment(object):
              save_to: Union[str, io.BufferedIOBase] = None) -> None:
         fig = plt.figure(figsize=(60, 30))
         gs = gridspec.GridSpec(1, 1, height_ratios=[3])
-        market_data = self._data[self._episode_start:self._current_state][data_column]
-        portfolio_data = self._portfolio_values.iloc[self._episode_start:self._current_state]
+        market_data = self._data[self._episode_start:self._state_idx][data_column]
+        portfolio_data = self._portfolio_values.iloc[self._episode_start:self._state_idx]
         price_data = market_data.join(portfolio_data)
         scaled_data = price_data / price_data.iloc[0]
         scaled_data *= self._portfolio_values.iloc[self._episode_start]
@@ -117,14 +119,14 @@ class Environment(object):
 
     @property
     def state(self) -> np.ndarray:
-        return self._data[self._current_state].values
+        return self._data[self._state_idx].values
 
     @property
     def portfolio_value(self) -> float:
-        if np.isnan(self._portfolio_values.iloc[self._current_state]):
+        if np.isnan(self._portfolio_values.iloc[self._state_idx]):
             current_value = self._cash + self.positions.sum()
-            self._portfolio_values.iloc[self._current_state] = current_value
-        return self._portfolio_values.iloc[self._current_state]
+            self._portfolio_values.iloc[self._state_idx] = current_value
+        return self._portfolio_values.iloc[self._state_idx]
 
     @property
     def positions(self) -> np.array:
@@ -144,18 +146,18 @@ class Environment(object):
 
     @property
     def current_timestamp(self):
-        return self._data.index[self._current_state]
+        return self._data.index[self._state_idx]
 
     @property
     def last_prices(self) -> pd.Series:
-        return self._data[self._current_state]['close']
+        return self._data[self._state_idx]['close']
 
     @property
     def period_returns(self):
-        if self._current_state == 0:
+        if self._state_idx == 0:
             raise ValueError('Cant compute return in state 0')
-        result = self.last_prices / self._data[self._current_state-1]['close']
+        result = self.last_prices / self._data[self._state_idx-1]['close']
         return result - 1.
 
     def _next(self):
-        self._current_state += 1
+        self._state_idx += 1

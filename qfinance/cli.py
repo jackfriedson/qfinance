@@ -30,7 +30,7 @@ def learn(data_dir, interval, load_model, **kwargs):
     ]
     hyperparams = {
         # Exploration
-        'epsilon_decay': 1,
+        'epsilon_decay': 1.1,
         'epsilon_end': 0.01,
         'epsilon_start': 0.2,
 
@@ -43,7 +43,7 @@ def learn(data_dir, interval, load_model, **kwargs):
         'tau': 0.01,
         'hidden_units': 30,
         'actor_learn_rate': 1e-4,
-        'critic_learn_rate': 1e-5,
+        'critic_learn_rate': 1e-4,
         'trace_length': 48,
     }
     data = CompositeDataset.from_csv_dir(Path(data_dir),

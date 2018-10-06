@@ -85,6 +85,7 @@ class Agent(object):
                 next_state = self.environment.state
                 replay_memory.add(Transition(state, action, reward, next_state))
 
+            cumulative_return = 1.
             for episode_i, (train_slice, validation_slice) in enumerate(self.environment.episodes()):
                 click.echo('\nEpisode {}'.format(episode_i))
                 replay_memory.new_episode()
@@ -129,6 +130,7 @@ class Agent(object):
 
                 # TODO: Calculate sharpe ratio and outperformance of index
                 episode_return = (self.environment.portfolio_value / self.environment.initial_funding) - 1.
+                cumulative_return *= episode_return
 
                 # Compute outperformance of market return
                 # market_return = (self.environment.last_price / start_price) - 1.
@@ -147,7 +149,8 @@ class Agent(object):
                                           tag='episode/train/avg_reward')
                 episode_summary.value.add(simple_value=np.average(validation_stats['rewards']),
                                           tag='episode/validate/avg_reward')
-                episode_summary.value.add(simple_value=episode_return, tag='episode/validate/return')
+                episode_summary.value.add(simple_value=episode_return, tag='episode/episode_return')
+                episode_summary.value.add(simple_value=cumulative_return, tag='episode/cumulative_return')
                 q_estimator.summary_writer.add_summary(episode_summary, episode_i)
                 q_estimator.summary_writer.add_summary(self._episode_chart_summary(episode_i), episode_i)
                 q_estimator.summary_writer.flush()
