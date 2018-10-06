@@ -97,7 +97,6 @@ class Environment(object):
         gs = gridspec.GridSpec(1, 1, height_ratios=[3])
         market_data = self._data[self._episode_start:self._state_idx][data_column]
         portfolio_data = self._episode_values.iloc[self._episode_start:self._state_idx]
-        import ipdb; ipdb.set_trace()
         price_data = market_data.join(portfolio_data)
         scaled_data = price_data / price_data.iloc[0]
         assert self._episode_values.iloc[self._episode_start] == self.initial_funding, stored_val
