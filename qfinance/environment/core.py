@@ -26,6 +26,7 @@ class Environment(object):
         self._data = dataset
         self._initial_cash_pct = initial_cash_pct
         self._episode_start = 0
+        self._val_start = None
         self._state_idx = 0
         self._cash = 0.0
         self._shares = []
@@ -68,8 +69,17 @@ class Environment(object):
             self._episode_start = episode_i * self.episode_validation_length
             self._state_idx = self._episode_start
             self._episode_values = pd.Series(index=self._data.index, name='QFIN')
-            yield ((self.state for _ in range(self.episode_train_length)),
-                   (self.state for _ in range(self.episode_validation_length)))
+            self._train_start, self._val_start = None, None
+
+            def get_train_states():
+                self._train_start = self._state_idx
+                return (self.state for _ in range(self.episode_train_length))
+
+            def get_val_states():
+                self._val_start = self._state_idx
+                return (self.state for _ in range(self.episode_validation_length))
+
+            yield get_train_states, get_val_states
 
     def step(self, new_weights: np.array) -> float:
         np.testing.assert_almost_equal(new_weights.sum(), 1.0, 5)
@@ -95,10 +105,29 @@ class Environment(object):
              save_to: Union[str, io.BufferedIOBase] = None) -> None:
         fig = plt.figure(figsize=(60, 30))
         gs = gridspec.GridSpec(1, 1, height_ratios=[3])
-        market_data = self._data[self._episode_start:self._state_idx][data_column]
-        portfolio_data = self._episode_values.iloc[self._episode_start:self._state_idx]
-        price_data = market_data.join(portfolio_data)
-        scaled_data = price_data / price_data.iloc[0]
+
+        # Get train data
+        market_train_data = self._data[self._train_start:self._val_start][data_column]
+        portfolio_train_data = self._episode_values.iloc[self._train_start:self._val_start]
+        price_train_data = market_train_data.join(portfolio_train_data)
+        scaled_train_data = price_train_data / price_train_data.iloc[0]
+
+        # Get validation data
+        market_val_data = self._data[self._val_start:self._state_idx][data_column]
+        portfolio_val_data = self._episode_values.iloc[self._val_start:self._state_idx]
+        price_val_data = market_val_data.join(portfolio_val_data)
+        scaled_val_data = price_val_data / price_val_data.iloc[0]
+
+        scaled_dataframes = []
+        train_slice = slice(self._train_start, self._val_start)
+        val_slice = slice(self._val_start, self._state_idx)
+        for slice_ in [train_slice, val_slice]:
+            market_data = self._data[slice_][data_column]
+            portfolio_data = self._episode_values.iloc[slice_]
+            price_data = market_data.join(portfolio_data)
+            scaled_dataframes.append(price_data / price_data.iloc[0])
+
+        scaled_data = pd.concat(scaled_dataframes)
         assert self._episode_values.iloc[self._episode_start] == self.initial_funding, stored_val
         scaled_data *= self.initial_funding
         dt_index = scaled_data.index

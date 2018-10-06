@@ -85,8 +85,8 @@ class Agent(object):
                 next_state = self.environment.state
                 replay_memory.add(Transition(state, action, reward, next_state))
 
-            cumulative_return = 1.
-            for episode_i, (train_states, val_states) in enumerate(self.environment.episodes()):
+            cumulative_return = 0.
+            for episode_i, (get_train_states, get_val_states) in enumerate(self.environment.episodes()):
                 click.echo('\nEpisode {}'.format(episode_i))
                 replay_memory.new_episode()
                 rnn_state = q_estimator.zero_rnn_state()
@@ -96,7 +96,7 @@ class Agent(object):
                                                     prefix='Training:')
 
                 self.environment.reset_portfolio()
-                for state in train_bar(train_states):
+                for state in train_bar(get_train_states()):
                     # Make a prediction
                     action, rnn_state = policy(sess, state, rnn_state)
                     reward = self.environment.step(action)
@@ -118,7 +118,7 @@ class Agent(object):
                                                   prefix='Evaluating:')
 
                 self.environment.reset_portfolio()
-                for state in val_bar(val_states):
+                for state in val_bar(get_val_states()):
                     action, rnn_state = policy(sess, state, rnn_state, is_training=False)
                     reward = self.environment.step(action)
                     state = self.environment.state
