@@ -39,9 +39,9 @@ class Environment(object):
         train_percent_ratio = (1-self.validation_percent) / self.validation_percent
         self.episode_validation_length = int(total_length / (n_episodes + train_percent_ratio))
         self.episode_train_length = int(self.episode_validation_length * train_percent_ratio)
-        self._init_portfolio()
+        self._reset_portfolio()
 
-    def _init_portfolio(self):
+    def _reset_portfolio(self):
         self._portfolio_values.iloc[self._state_idx] = self.initial_funding
         cash_pct = self._initial_cash_pct
         n_symbols = len(self._data.symbols)
@@ -66,9 +66,18 @@ class Environment(object):
         for episode_i in range(self.n_episodes):
             self._episode_start = episode_i * self.episode_validation_length
             self._state_idx = self._episode_start
-            self._init_portfolio()
-            yield ((self.state for _ in range(self.episode_train_length)),
-                   (self.state for _ in range(self.episode_validation_length)))
+            self._reset_portfolio()
+
+            def train_states():
+                for _ in range(self.episode_train_length):
+                    yield self.state
+
+            def validate_states():
+                self._reset_portfolio()
+                for _ in range(self.episode_validation_length):
+                    yield self.state
+
+            yield train_states(), validate_states()
 
     def step(self, new_weights: np.array) -> float:
         np.testing.assert_almost_equal(new_weights.sum(), 1.0, 5)

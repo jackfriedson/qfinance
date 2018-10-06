@@ -130,7 +130,7 @@ class Agent(object):
 
                 # TODO: Calculate sharpe ratio and outperformance of index
                 episode_return = (self.environment.portfolio_value / self.environment.initial_funding) - 1.
-                cumulative_return *= episode_return
+                cumulative_return = ((1. + cumulative_return) * (1. + episode_return) - 1.)
 
                 # Compute outperformance of market return
                 # market_return = (self.environment.last_price / start_price) - 1.
