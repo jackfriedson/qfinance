@@ -127,7 +127,7 @@ class Environment(object):
             price_data = market_data.join(portfolio_data)
 
             scaled_data = price_data / price_data.iloc[0]
-            assert self._episode_values.iloc[self._episode_start] == self.initial_funding
+            np.testing.assert_almost_equal(portfolio_data[0], self.initial_funding, 3)
             scaled_data *= self.initial_funding
             dt_index = scaled_data.index
             scaled_data.reset_index(drop=True, inplace=True)
