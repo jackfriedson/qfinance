@@ -38,7 +38,7 @@ def learn(market_data, risk_free_data, interval, load_model, **kwargs):
         'epsilon_start': 0.2,
 
         # Replay Memory
-        'batch_size': 64,
+        'batch_size': 32,
         'memory_max_size': 1e4,
 
         # Model params
@@ -47,7 +47,7 @@ def learn(market_data, risk_free_data, interval, load_model, **kwargs):
         'hidden_units': 30,
         'actor_learn_rate': 1e-4,
         'critic_learn_rate': 1e-4,
-        'trace_length': 48,
+        'trace_length': 64,
     }
     market_data = CompositeDataset.from_csv_dir(Path(market_data),
                                                 interval=interval,
