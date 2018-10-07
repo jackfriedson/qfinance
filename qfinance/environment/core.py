@@ -16,14 +16,16 @@ from environment.dataset import CompositeDataset
 class Environment(object):
 
     def __init__(self,
-                 dataset: CompositeDataset,
+                 market_data: CompositeDataset,
+                 risk_free_data: pd.Series,
                  fee: float,
                  initial_funding: float,
                  initial_cash_pct: float,
                  validation_percent: float,
                  n_episodes: int,
                  memory_start_size: int):
-        self._data = dataset
+        self._data = market_data
+        self._risk_free_rate = risk_free_data
         self._initial_cash_pct = initial_cash_pct
         self._episode_start = 0
         self._val_start = None
@@ -106,18 +108,6 @@ class Environment(object):
         fig = plt.figure(figsize=(60, 30))
         gs = gridspec.GridSpec(2, 1, height_ratios=[1, 1])
 
-        # Get train data
-        market_train_data = self._data[self._train_start:self._val_start][data_column]
-        portfolio_train_data = self._episode_values.iloc[self._train_start:self._val_start]
-        price_train_data = market_train_data.join(portfolio_train_data)
-        scaled_train_data = price_train_data / price_train_data.iloc[0]
-
-        # Get validation data
-        market_val_data = self._data[self._val_start:self._state_idx][data_column]
-        portfolio_val_data = self._episode_values.iloc[self._val_start:self._state_idx]
-        price_val_data = market_val_data.join(portfolio_val_data)
-        scaled_val_data = price_val_data / price_val_data.iloc[0]
-
         scaled_dataframes = []
         train_slice = slice(self._train_start, self._val_start)
         val_slice = slice(self._val_start, self._state_idx)
@@ -187,6 +177,25 @@ class Environment(object):
             raise ValueError('Cant compute return in state 0')
         result = self.last_prices / self._data[self._state_idx-1]['close']
         return result - 1.
+
+    @property
+    def episode_return(self):
+        return (self.portfolio_value / self.initial_funding) - 1.
+
+    @property
+    def validation_sharpe(self):
+        start_date = self._data.index[self._val_start].date()
+        end_date = self.current_timestamp.date()
+        risk_free_rate = self._risk_free_rate[start_date]
+        n_days = (end_date - start_date).days
+        risk_free_return = risk_free_rate * n_days / 365
+
+        episode_values = self._episode_values.iloc[self._val_start:self._state_idx]
+        episode_returns = episode_values / episode_values.shift(1)
+        episode_returns = episode_returns.fillna(1) - 1.
+
+        sharpe_ratio = (self.episode_return - risk_free_return) / episode_returns.std()
+        return sharpe_ratio
 
     def _next(self):
         self._state_idx += 1

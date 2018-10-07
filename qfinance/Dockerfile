@@ -20,13 +20,15 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
 COPY ./datasets/portfolio_data ./portfolio_data
+COPY ./datasets/tbill_data.csv ./tbill_data.csv
 
 ENV ENV "DOCKER"
 ENV LC_ALL "C.UTF-8"
 ENV LANG "C.UTF-8"
 
 CMD ["python", "cli.py", \
-     "--data-dir=portfolio_data", \
+     "--market-data=portfolio_data", \
+     "--risk-free-data=tbill_data.csv", \
      "--n-episodes=100", \
      "--interval=30Min", \
      "--fee=0." \

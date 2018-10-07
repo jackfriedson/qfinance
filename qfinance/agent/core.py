@@ -127,12 +127,12 @@ class Agent(object):
                 saver.save(sess, str(self.models_dir/'model.ckpt'))
 
                 # TODO: Calculate sharpe ratio and outperformance of index
-                episode_return = (self.environment.portfolio_value / self.environment.initial_funding) - 1.
+                episode_return = self.environment.episode_return
                 cumulative_return = ((1. + cumulative_return) * (1. + episode_return) - 1.)
 
                 # Compute outperformance of market return
                 # market_return = (self.environment.last_price / start_price) - 1.
-                # position_value = start_price
+                # position_value = start_price    risk_free_data = load_tbill_data(Path(risk_free_data))
                 # for return_val in self.environment.order_returns():
                 #     position_value *= 1 + return_val
                 # algorithm_return = (position_value / start_price) - 1.
@@ -148,6 +148,8 @@ class Agent(object):
                 episode_summary.value.add(simple_value=np.average(validation_stats['rewards']),
                                           tag='episode/validate/avg_reward')
                 episode_summary.value.add(simple_value=episode_return, tag='episode/validate/episode_return')
+                episode_summary.value.add(simple_value=self.environment.validation_sharpe,
+                                          tag='episode/validate/sharpe')
                 episode_summary.value.add(simple_value=cumulative_return, tag='episode/validate/cumulative_return')
                 q_estimator.summary_writer.add_summary(episode_summary, episode_i)
                 q_estimator.summary_writer.add_summary(self._episode_chart_summary(episode_i), episode_i)

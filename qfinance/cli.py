@@ -4,11 +4,14 @@ import click
 
 from agent import Agent
 from environment import CompositeDataset, Environment
+from environment.util import load_tbill_data
 
 
 @click.command()
-@click.option('--data-dir', type=click.Path(exists=True),
-              help='Directory of CSV files to read data from')
+@click.option('--market-data', type=click.Path(exists=True),
+              help='Directory of CSV files to load market data from')
+@click.option('--risk-free-data', type=click.Path(exists=True),
+              help='CSV file to load risk-free rate data from')
 @click.option('--validation-percent', type=float, default=0.2)
 @click.option('--n-episodes', type=int, default=10)
 @click.option('--memory-start-size', type=int, default=10000)
@@ -17,7 +20,7 @@ from environment import CompositeDataset, Environment
 @click.option('--initial-funding', type=float, default=10000.)
 @click.option('--initial-cash-pct', type=float, default=0.2)
 @click.option('--load-model', type=str, default=None)
-def learn(data_dir, interval, load_model, **kwargs):
+def learn(market_data, risk_free_data, interval, load_model, **kwargs):
     indicators = [
         'macd',
         'rsi',
@@ -46,11 +49,12 @@ def learn(data_dir, interval, load_model, **kwargs):
         'critic_learn_rate': 1e-4,
         'trace_length': 48,
     }
-    data = CompositeDataset.from_csv_dir(Path(data_dir),
-                                         interval=interval,
-                                         indicators=indicators,
-                                         drop_columns=drop_columns)
-    environment = Environment(data, **kwargs)
+    market_data = CompositeDataset.from_csv_dir(Path(market_data),
+                                                interval=interval,
+                                                indicators=indicators,
+                                                drop_columns=drop_columns)
+    risk_free_data = load_tbill_data(Path(risk_free_data))
+    environment = Environment(market_data, risk_free_data, **kwargs)
     agent = Agent(environment, random_seed=999999)
     agent.train(load_model=load_model, **hyperparams)
 
