@@ -9,5 +9,5 @@ def load_tbill_data(csv_file: Path) -> pd.Series:
                        parse_dates=True,
                        infer_datetime_format=True)
     data = data['3month']
-    data = data.tz_localize('UTC')
+    data = data.resample('D').ffill().tz_localize('UTC')
     return data

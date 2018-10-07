@@ -29,7 +29,9 @@ def learn(market_data, risk_free_data, interval, load_model, **kwargs):
     ]
     drop_columns = [
         'open',
-        'low'
+        'low',
+        'macd',
+        'macdsignal'
     ]
     hyperparams = {
         # Exploration
