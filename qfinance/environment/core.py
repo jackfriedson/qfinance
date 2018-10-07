@@ -104,7 +104,7 @@ class Environment(object):
              data_column: str = 'close',
              save_to: Union[str, io.BufferedIOBase] = None) -> None:
         fig = plt.figure(figsize=(60, 30))
-        gs = gridspec.GridSpec(1, 1, height_ratios=[3])
+        gs = gridspec.GridSpec(2, 1, height_ratios=[1, 1])
 
         # Get train data
         market_train_data = self._data[self._train_start:self._val_start][data_column]
@@ -121,26 +121,25 @@ class Environment(object):
         scaled_dataframes = []
         train_slice = slice(self._train_start, self._val_start)
         val_slice = slice(self._val_start, self._state_idx)
-        for slice_ in [train_slice, val_slice]:
+        for i, slice_ in enumerate([train_slice, val_slice]):
             market_data = self._data[slice_][data_column]
             portfolio_data = self._episode_values.iloc[slice_]
             price_data = market_data.join(portfolio_data)
-            scaled_dataframes.append(price_data / price_data.iloc[0])
 
-        scaled_data = pd.concat(scaled_dataframes)
-        assert self._episode_values.iloc[self._episode_start] == self.initial_funding, stored_val
-        scaled_data *= self.initial_funding
-        dt_index = scaled_data.index
-        scaled_data.reset_index(drop=True, inplace=True)
+            scaled_data = price_data / price_data.iloc[0]
+            assert self._episode_values.iloc[self._episode_start] == self.initial_funding
+            scaled_data *= self.initial_funding
+            dt_index = scaled_data.index
+            scaled_data.reset_index(drop=True, inplace=True)
 
-        ax0 = fig.add_subplot(gs[0])
-        ax0.set_title('Price ({})'.format(data_column))
-        ax0.set_xlim(left=scaled_data.index[0], right=scaled_data.index[-1])
-        ticks = ax0.get_xticks()
-        ax0.set_xticklabels([dt_index[int(i)].date() for i in ticks[:-1]])
-        for column in scaled_data.columns:
-            ax0.plot(scaled_data.index, scaled_data[column], label=column)
-        ax0.legend()
+            ax = fig.add_subplot(gs[i])
+            ax.set_title('Training' if i == 0 else 'Validation')
+            ax.set_xlim(left=scaled_data.index[0], right=scaled_data.index[-1])
+            ticks = ax.get_xticks()
+            ax.set_xticklabels([dt_index[int(i)].date() for i in ticks[:-1]])
+            for column in scaled_data.columns:
+                ax.plot(scaled_data.index, scaled_data[column], label=column)
+            ax.legend()
 
         fig.autofmt_xdate()
         plt.tight_layout()
