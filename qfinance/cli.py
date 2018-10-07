@@ -39,7 +39,7 @@ def learn(market_data, risk_free_data, interval, load_model, **kwargs):
 
         # Replay Memory
         'batch_size': 64,
-        'memory_max_size': 1e6,
+        'memory_max_size': 1e4,
 
         # Model params
         'gamma': 0.99,

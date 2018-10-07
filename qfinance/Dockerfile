@@ -30,6 +30,6 @@ CMD ["python", "cli.py", \
      "--market-data=portfolio_data", \
      "--risk-free-data=tbill_data.csv", \
      "--n-episodes=100", \
-     "--interval=30Min", \
+     "--interval=15Min", \
      "--fee=0." \
   ]
