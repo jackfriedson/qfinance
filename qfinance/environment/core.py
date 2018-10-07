@@ -98,7 +98,8 @@ class Environment(object):
         # TODO: add risk penalty (and maybe market impact penalty)
         new_value = self.portfolio_value
         self._episode_values.iloc[self._state_idx] = new_value
-        return (new_value / old_value) - 1.
+        one_step_return = (new_value / old_value) - 1.
+        return np.log(one_step_return)
 
     def plot(self,
              data_column: str = 'close',
