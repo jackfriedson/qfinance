@@ -47,9 +47,9 @@ def learn(market_data, risk_free_data, interval, load_model, **kwargs):
         'gamma': 0.99,
         'tau': 0.01,
         'hidden_units': 30,
-        'actor_learn_rate': 1e-4,
+        'actor_learn_rate': 3e-5,
         'critic_learn_rate': 1e-4,
-        'trace_length': 64,
+        'trace_length': 32,
     }
     market_data = CompositeDataset.from_csv_dir(Path(market_data),
                                                 interval=interval,
