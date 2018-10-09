@@ -2,7 +2,7 @@ from pathlib import Path
 
 import click
 
-from agent import Agent
+from agent import AsyncAgent
 from environment import CompositeDataset, Environment
 from environment.util import load_tbill_data
 
@@ -14,7 +14,7 @@ from environment.util import load_tbill_data
               help='CSV file to load risk-free rate data from')
 @click.option('--validation-percent', type=float, default=0.2)
 @click.option('--n-episodes', type=int, default=10)
-@click.option('--memory-start-size', type=int, default=1000)
+@click.option('--memory-start-size', type=int, default=100)
 @click.option('--fee', type=float, default=1.00)
 @click.option('--interval', type=str, default='1Min')
 @click.option('--initial-funding', type=float, default=10000.)
@@ -35,21 +35,23 @@ def learn(market_data, risk_free_data, interval, load_model, **kwargs):
     ]
     hyperparams = {
         # Exploration
-        'epsilon_decay': 1.1,
-        'epsilon_end': 0.01,
-        'epsilon_start': 0.2,
+        # 'epsilon_decay': 1.1,
+        # 'epsilon_end': 0.01,
+        # 'epsilon_start': 0.2,
 
         # Replay Memory
-        'batch_size': 32,
-        'memory_max_size': 1e4,
+        'batch_size': 16,
+        'memory_max_size': 500,
 
         # Model params
         'gamma': 0.99,
-        'tau': 0.01,
-        'hidden_units': 30,
-        'actor_learn_rate': 3e-5,
+        # 'tau': 0.01,
+        'entropy_beta': 0.01,
+        'actor_size': 50,
+        'critic_size': 30,
+        'actor_learn_rate': 1e-4,
         'critic_learn_rate': 1e-4,
-        'trace_length': 32,
+        'trace_length': 64,
     }
     market_data = CompositeDataset.from_csv_dir(Path(market_data),
                                                 interval=interval,
@@ -57,7 +59,7 @@ def learn(market_data, risk_free_data, interval, load_model, **kwargs):
                                                 drop_columns=drop_columns)
     risk_free_data = load_tbill_data(Path(risk_free_data))
     environment = Environment(market_data, risk_free_data, **kwargs)
-    agent = Agent(environment, random_seed=999999)
+    agent = AsyncAgent(environment, random_seed=999999)
     agent.train(load_model=load_model, **hyperparams)
 
 

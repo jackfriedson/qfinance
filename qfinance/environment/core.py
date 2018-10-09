@@ -45,6 +45,18 @@ class Environment(object):
 
         self.reset_portfolio()
 
+    def copy(self):
+        return Environment(
+            self._data,
+            self._risk_free_rate,
+            self.fee,
+            self.initial_funding,
+            self._initial_cash_pct,
+            self.validation_percent,
+            self.n_episodes,
+            self.memory_start_size
+        )
+
     def reset_portfolio(self):
         cash_pct = self._initial_cash_pct
         n_symbols = len(self._data.symbols)
